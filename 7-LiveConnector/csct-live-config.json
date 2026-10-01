@@ -1,0 +1,45 @@
+{
+  "settings": {
+    "port": 8787,
+    "pollSeconds": 60,
+    "fullSyncMinutes": 60,
+    "lookbackDays": 120,
+    "staleCaseDays": 21,
+    "calendarPastDays": 120,
+    "calendarFutureDays": 60,
+    "dashboard": "customer-success-control-tower.html",
+    "accountTeam": [],
+    "publish": {
+      "enabled": true,
+      "everyMinutes": 10,
+      "from": "09:00",
+      "to": "18:00",
+      "tzOffsetHours": 3,
+      "folder": "..\\8-SharedDashboard",
+      "fileName": "Customer-Success-Control-Tower-Daily.html",
+      "includeEmailText": false,
+      "includeContactEmails": false
+    },
+    "mirp": {
+      "ignoreWorkspaces": ["FABRIKAM GROUP UNIFIED"]
+    }
+  },
+  "accounts": [
+    { "Title": "Contoso Holding", "Group": "Contoso", "Aliases": ["Contoso Holding", "ContosoHolding"], "Domains": ["contoso.com"], "Segment": "Strategic", "Industry": "Holding / Conglomerate", "StrategicTier": "Tier 1", "ContractType": "Unified Enterprise", "ContractEnd": "2026-12-15", "CSMConcern": "Concern", "CSMConcernNote": "Two Sev A collaboration incidents this quarter; renewal planning starts in November.", "CustomerExecSponsor": "Group CIO", "MIRPStatus": "Confirmed", "MIRPAsOf": "2026-10-01", "MIRPConfirmedOn": "2026-09-24T09:12:40Z", "MIRPConfirmedBy": "Megan Bowen", "MIRPWorkspace": "Contoso-UnifiedEnterprise-Contoso Holding" },
+    { "Title": "Tailwind Traders", "Group": "Contoso", "Aliases": ["Tailwind Traders", "TailwindTraders"], "Domains": ["tailwindtraders.com"], "Industry": "Retail", "ContractType": "Unified Enterprise", "MIRPStatus": "Confirmed", "MIRPAsOf": "2026-10-01", "MIRPConfirmedOn": "2026-09-09T10:17:29Z", "MIRPConfirmedBy": "Megan Bowen", "MIRPWorkspace": "Contoso-UnifiedEnterprise-Tailwind Traders" },
+    { "Title": "Northwind Logistics", "Group": "Contoso", "Aliases": ["Northwind Logistics", "Northwind"], "Domains": ["northwindtraders.com"], "Industry": "Logistics", "ContractType": "Unified Enterprise", "CSMConcern": "Watch", "MIRPStatus": "Pending", "MIRPAsOf": "2026-10-01", "MIRPWorkspace": "Contoso-UnifiedEnterprise-Northwind Logistics" },
+    { "Title": "Litware Manufacturing", "Group": "Contoso", "Aliases": ["Litware Manufacturing", "Litware"], "Domains": ["litwareinc.com"], "Industry": "Manufacturing", "ContractType": "Unified Enterprise", "MIRPStatus": "Confirmed", "MIRPAsOf": "2026-10-01", "MIRPConfirmedOn": "2026-09-18T07:22:45Z", "MIRPConfirmedBy": "Henrietta Mueller", "MIRPWorkspace": "Contoso-UnifiedEnterprise-Litware Manufacturing" },
+    { "Title": "Fourth Coffee", "Group": "Contoso", "Aliases": ["Fourth Coffee", "FourthCoffee"], "Domains": ["fourthcoffee.com"], "Industry": "Food and beverage", "ContractType": "Unified Enterprise", "MIRPStatus": "Confirmed", "MIRPAsOf": "2026-10-01", "MIRPConfirmedOn": "2026-09-09T10:16:35Z", "MIRPConfirmedBy": "Megan Bowen", "MIRPWorkspace": "Contoso-UnifiedEnterprise-Fourth Coffee" },
+    { "Title": "Woodgrove Bank", "Group": "Woodgrove", "Aliases": ["Woodgrove Bank", "WoodgroveBank"], "Domains": ["woodgrovebank.com"], "Segment": "Strategic", "Industry": "Banking", "StrategicTier": "Tier 1", "ContractType": "Unified Enterprise", "ContractEnd": "2027-06-30", "CSMConcern": "Watch", "CustomerExecSponsor": "CTO", "MIRPStatus": "Confirmed", "MIRPAsOf": "2026-10-01", "MIRPConfirmedOn": "2026-04-20T08:05:11Z", "MIRPConfirmedBy": "Isaiah Langer", "MIRPWorkspace": "Woodgrove-UnifiedEnterprise-Woodgrove Bank" },
+    { "Title": "Humongous Insurance", "Group": "Woodgrove", "Aliases": ["Humongous Insurance", "Humongous"], "Domains": ["humongousinsurance.com"], "Industry": "Insurance", "StrategicTier": "Tier 1", "ContractType": "Unified Enterprise", "ContractEnd": "2026-12-20", "CSMConcern": "Critical", "CSMConcernNote": "Mailbox migration programme behind plan; the customer CIO has escalated twice.", "CustomerExecSponsor": "CIO", "MIRPStatus": "Confirmed", "MIRPAsOf": "2026-10-01", "MIRPConfirmedOn": "2026-03-16T13:40:02Z", "MIRPConfirmedBy": "Johanna Lorenz", "MIRPWorkspace": "Woodgrove-UnifiedEnterprise-Humongous Insurance" },
+    { "Title": "Fabrikam Energy", "Group": "Fabrikam", "Aliases": ["Fabrikam Energy", "FabrikamEnergy"], "Domains": ["fabrikam.com"], "Industry": "Energy", "ContractType": "Unified Enterprise", "ContractEnd": "2027-03-31", "MIRPStatus": "Pending", "MIRPAsOf": "2026-10-01", "MIRPWorkspace": "FABRIKAM-UNIFIED-Fabrikam Energy" },
+    { "Title": "Relecloud Telecom", "Group": "Fabrikam", "Aliases": ["Relecloud Telecom", "Relecloud"], "Domains": ["relecloud.com"], "Industry": "Telecommunications", "ContractType": "Unified Enterprise", "MIRPStatus": "Confirmed", "MIRPAsOf": "2026-10-01", "MIRPConfirmedOn": "2026-09-29T09:39:07Z", "MIRPConfirmedBy": "Nestor Wilke", "MIRPWorkspace": "FABRIKAM-UNIFIED-Relecloud Telecom" },
+    { "Title": "Tailspin Aerospace", "Aliases": ["Tailspin Aerospace", "Tailspin"], "Domains": ["tailspintoys.com"], "Industry": "Aerospace and defense", "ContractType": "Unified Enterprise", "MIRPStatus": "Confirmed", "MIRPAsOf": "2026-10-01", "MIRPConfirmedOn": "2026-09-29T11:02:19Z", "MIRPConfirmedBy": "Grady Archie", "MIRPWorkspace": "Tailspin Aerospace" },
+    { "Title": "Adatum Automotive", "Aliases": ["Adatum Automotive", "Adatum"], "Domains": ["adatum.com"], "Industry": "Automotive", "ContractType": "Unified Enterprise", "MIRPStatus": "Pending", "MIRPAsOf": "2026-10-01", "MIRPWorkspace": "Adatum Automotive" },
+    { "Title": "Wide World Importers", "Aliases": ["Wide World Importers", "WideWorldImporters"], "Domains": ["wideworldimporters.com"], "Industry": "Wholesale and trade", "ContractType": "Unified Enterprise", "MIRPStatus": "Confirmed", "MIRPAsOf": "2026-10-01", "MIRPConfirmedOn": "2026-09-28T10:59:18Z", "MIRPConfirmedBy": "Pradeep Gupta", "MIRPWorkspace": "Wide World Importers" },
+    { "Title": "Lamna Healthcare", "Aliases": ["Lamna Healthcare", "Lamna"], "Domains": ["lamnahealthcare.com"], "Industry": "Healthcare", "ContractType": "Unified Enterprise", "MIRPStatus": "Confirmed", "MIRPAsOf": "2026-10-01", "MIRPConfirmedOn": "2026-09-25T08:45:23Z", "MIRPConfirmedBy": "Lynne Robbins", "MIRPWorkspace": "Lamna Healthcare" },
+    { "Title": "City Power & Light", "Aliases": ["City Power & Light", "City Power and Light", "CPandL"], "Domains": ["cpandl.com"], "Industry": "Public sector", "ContractType": "Unified Enterprise", "MIRPStatus": "Exception", "MIRPAsOf": "2026-09-07", "MIRPWorkspace": ["CITY POWER & LIGHT", "CPL-Grid-1", "CPL-Datacenter-2"], "MIRPNote": "Full MIRP exception approved on 7 Sep 2026 for its 3 Engage Center workspaces." },
+    { "Title": "Trey Research", "Aliases": ["Trey Research", "TreyResearch"], "Domains": ["treyresearch.net"], "Industry": null, "ContractType": "Unified Enterprise", "MIRPStatus": "Unknown", "MIRPAsOf": "2026-10-01", "MIRPNote": "No Engage Center workspace for this account among the workspaces you can access." },
+    { "Title": "Proseware Retail", "Aliases": ["Proseware Retail", "Proseware"], "Domains": ["proseware.com"], "Industry": "Retail", "ContractType": "Unified Enterprise", "MIRPStatus": "Pending", "MIRPAsOf": "2026-10-01", "MIRPWorkspace": "Proseware Retail" }
+  ]
+}

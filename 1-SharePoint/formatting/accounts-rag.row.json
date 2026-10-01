@@ -1,0 +1,4 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/sp/v2/row-formatting.schema.json",
+  "additionalRowClass": "=if([$AccountRAG] == 'Red', 'sp-field-severity--blocked', if([$AccountRAG] == 'Yellow', 'sp-field-severity--warning', ''))"
+}

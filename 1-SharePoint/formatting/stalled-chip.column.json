@@ -1,0 +1,28 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/sp/v2/column-formatting.schema.json",
+  "elmType": "div",
+  "style": {
+    "display": "=if(@currentField == true || @currentField == 'Yes' || @currentField == '1', 'inline-flex', 'none')",
+    "align-items": "center",
+    "padding": "1px 8px",
+    "border-radius": "10px",
+    "background-color": "#FDE2E2",
+    "color": "#991B1B",
+    "font-weight": "600"
+  },
+  "children": [
+    {
+      "elmType": "span",
+      "attributes": {
+        "iconName": "CirclePause"
+      },
+      "style": {
+        "margin-right": "4px"
+      }
+    },
+    {
+      "elmType": "span",
+      "txtContent": "Stalled"
+    }
+  ]
+}

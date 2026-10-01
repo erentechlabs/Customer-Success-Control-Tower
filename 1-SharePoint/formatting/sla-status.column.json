@@ -1,0 +1,25 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/sp/v2/column-formatting.schema.json",
+  "elmType": "div",
+  "style": {
+    "display": "inline-flex",
+    "align-items": "center",
+    "color": "=if(@currentField == 'Breached', '#B91C1C', if(@currentField == 'At Risk' || @currentField == 'Late response', '#B45309', '#166534'))",
+    "font-weight": "=if(@currentField == 'Breached', '700', '400')"
+  },
+  "children": [
+    {
+      "elmType": "span",
+      "style": {
+        "margin-right": "5px"
+      },
+      "attributes": {
+        "iconName": "=if(@currentField == 'Breached', 'AlarmClock', if(@currentField == 'At Risk' || @currentField == 'Late response', 'Warning', 'CheckMark'))"
+      }
+    },
+    {
+      "elmType": "span",
+      "txtContent": "@currentField"
+    }
+  ]
+}

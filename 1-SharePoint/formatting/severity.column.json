@@ -1,0 +1,13 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/sp/v2/column-formatting.schema.json",
+  "elmType": "div",
+  "style": {
+    "display": "inline-block",
+    "padding": "1px 8px",
+    "border-radius": "6px",
+    "font-weight": "600",
+    "border": "=if(@currentField == 'Sev 1' || @currentField == 'Sev A', '1px solid #DC2626', '1px solid #C8C8C8')",
+    "color": "=if(@currentField == 'Sev 1' || @currentField == 'Sev A', '#B91C1C', '#333333')"
+  },
+  "txtContent": "@currentField"
+}

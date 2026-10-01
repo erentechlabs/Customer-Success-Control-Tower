@@ -1,0 +1,47 @@
+// ============================================================================================
+// Customer Success Control Tower - model tables & relationships
+// Modeling > New table: paste each calculated table. Then create the relationships listed below.
+// ============================================================================================
+
+// ---- 'Date' (mark as date table on Date[Date])
+Date =
+ADDCOLUMNS (
+    CALENDAR ( DATE ( 2026, 1, 1 ), DATE ( 2027, 12, 31 ) ),
+    "Year", YEAR ( [Date] ),
+    "Month", FORMAT ( [Date], "mmm yyyy" ),
+    "MonthNo", YEAR ( [Date] ) * 100 + MONTH ( [Date] ),
+    "Week", "W" & FORMAT ( WEEKNUM ( [Date], 21 ), "00" ),
+    "Weekday", FORMAT ( [Date], "ddd" ),
+    "IsBusinessDay", WEEKDAY ( [Date], 2 ) <= 5
+)
+
+// ---- 'RAG' (sort RiskLevel by Sort; use Color for conditional formatting)
+RAG =
+DATATABLE (
+    "RiskLevel", STRING, "Sort", INTEGER, "Color", STRING,
+    { { "Red", 1, "#DC2626" }, { "Yellow", 2, "#F59E0B" }, { "Green", 3, "#16A34A" } }
+)
+
+// ---- 'Severity' (sort order for visuals)
+Severity =
+DATATABLE (
+    "Severity", STRING, "Sort", INTEGER,
+    { { "Sev 1", 1 }, { "Sev A", 2 }, { "Sev B", 3 }, { "Sev C", 4 } }
+)
+
+/* ---- Relationships (Model view)
+   Accounts[Title]        1 --> *  Cases[Account]              single direction
+   Accounts[Title]        1 --> *  Signals[Account]            single direction
+   Accounts[Title]        1 --> *  Escalations[Account]        single direction
+   Accounts[Title]        1 --> *  Snapshot[AccountName]       single direction
+   Cases[CaseId]          1 --> *  CaseEvents[CaseId]          single direction
+   'Date'[Date]           1 --> *  Snapshot[SnapshotDate]      single direction
+   'RAG'[RiskLevel]       1 --> *  Cases[RiskLevel]            single direction
+   'Severity'[Severity]   1 --> *  Cases[Severity]             single direction
+   Signals[CaseId] and Escalations[CaseId] stay unrelated to Cases (use TREATAS in visuals when needed)
+   to avoid ambiguous paths through Accounts.
+
+   ---- Optional row-level security (only if the report is shared beyond CSM + manager)
+   Role "CSM":     Accounts[CSMOwner] = USERPRINCIPALNAME ()   (store the owner's email in a text column)
+   Role "Manager": no filter
+*/

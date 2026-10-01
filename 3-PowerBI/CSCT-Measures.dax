@@ -1,0 +1,138 @@
+// ============================================================================================
+// Customer Success Control Tower - DAX measure pack v1.0
+// Power BI Desktop > DAX query view > paste this file > Run. Then click the CodeLens
+// "Update model: Add new measures" above DEFINE to add every measure to the model in one go.
+// Requires the tables from CSCT-PowerQuery.pq and the 'Date' / 'RAG' tables from CSCT-Model-Tables.dax.
+// Colours: Red #DC2626, Yellow #F59E0B, Green #16A34A (match the SharePoint formatting and the theme).
+// ============================================================================================
+DEFINE
+    // ---------------- Case portfolio
+    MEASURE Cases[Open Cases] = CALCULATE ( COUNTROWS ( Cases ), Cases[IsOpen] = TRUE () )
+    MEASURE Cases[Red Cases] = CALCULATE ( [Open Cases], Cases[RiskLevel] = "Red" )
+    MEASURE Cases[Yellow Cases] = CALCULATE ( [Open Cases], Cases[RiskLevel] = "Yellow" )
+    MEASURE Cases[Green Cases] = CALCULATE ( [Open Cases], Cases[RiskLevel] = "Green" )
+    MEASURE Cases[% Red] = DIVIDE ( [Red Cases], [Open Cases] )
+    MEASURE Cases[Sev 1-A Open] = CALCULATE ( [Open Cases], Cases[Severity] IN { "Sev 1", "Sev A" } )
+    MEASURE Cases[Portfolio Risk Index] = CALCULATE ( AVERAGE ( Cases[RiskScore] ), Cases[IsOpen] = TRUE () )
+    MEASURE Cases[Avg Case Age (days)] = CALCULATE ( AVERAGE ( Cases[DaysOpen] ), Cases[IsOpen] = TRUE () )
+    MEASURE Cases[Median Idle (business days)] = CALCULATE ( MEDIAN ( Cases[BizDaysIdle] ), Cases[IsOpen] = TRUE () )
+    MEASURE Cases[New Cases (7d)] =
+        VAR d = NOW () - 7
+        RETURN CALCULATE ( COUNTROWS ( Cases ), Cases[CreatedOn] >= d )
+    MEASURE Cases[Closed Cases (7d)] =
+        VAR d = NOW () - 7
+        RETURN CALCULATE ( COUNTROWS ( Cases ), Cases[ClosedOn] >= d )
+    MEASURE Cases[Net Backlog Change (7d)] = [New Cases (7d)] - [Closed Cases (7d)]
+    // ---------------- Stalls & SLA
+    MEASURE Cases[Stalled Cases] = CALCULATE ( [Open Cases], Cases[IsStalled] = TRUE () )
+    MEASURE Cases[Stalled - Microsoft Side] = CALCULATE ( [Open Cases], Cases[StallType] IN { "Microsoft-side", "Blocked (Product Group)", "Process (no owner)" } )
+    MEASURE Cases[Stalled - Customer Side] = CALCULATE ( [Open Cases], Cases[StallType] = "Customer-side" )
+    MEASURE Cases[Commitments Missed] = CALCULATE ( [Open Cases], Cases[StallType] = "Commitment missed" )
+    MEASURE Cases[SLA Breached] = CALCULATE ( [Open Cases], Cases[SLAStatus] = "Breached" )
+    MEASURE Cases[SLA At Risk] = CALCULATE ( [Open Cases], Cases[SLAStatus] = "At Risk" )
+    MEASURE Cases[Blind Spots] = CALCULATE ( [Open Cases], Cases[PlaybookId] = "PB-13" )
+    // ---------------- Escalation readiness (case side)
+    MEASURE Cases[Cases With Triggers] = CALCULATE ( [Open Cases], LEN ( Cases[EscalationTriggers] ) > 0 )
+    MEASURE Cases[Turned Red Today] =
+        VAR runAt = [Last Engine Run]
+        RETURN CALCULATE ( [Open Cases], Cases[RiskLevel] = "Red", Cases[RedSince] >= runAt - ( 1 / 24 ) )
+    // ---------------- Score explainability (use as values in a stacked bar per case)
+    MEASURE Cases[Pts Severity] = SUM ( Cases[PtsSeverity] )
+    MEASURE Cases[Pts Momentum] = SUM ( Cases[PtsMomentum] )
+    MEASURE Cases[Pts Age] = SUM ( Cases[PtsAge] )
+    MEASURE Cases[Pts SLA] = SUM ( Cases[PtsSLA] )
+    MEASURE Cases[Pts Voice] = SUM ( Cases[PtsVoice] )
+    MEASURE Cases[Pts Exposure] = SUM ( Cases[PtsExposure] )
+    MEASURE Cases[Case Risk Rank] =
+        IF (
+            HASONEVALUE ( Cases[CaseId] ),
+            RANKX ( FILTER ( ALLSELECTED ( Cases ), Cases[IsOpen] = TRUE () ), CALCULATE ( MAX ( Cases[RiskScore] ) ), , DESC, DENSE )
+        )
+    // ---------------- Formatting helpers (Format > Conditional formatting > Field value)
+    MEASURE Cases[RAG Color] = SWITCH ( SELECTEDVALUE ( Cases[RiskLevel] ), "Red", "#DC2626", "Yellow", "#F59E0B", "Green", "#16A34A", "#919191" )
+    MEASURE Cases[Score Color] =
+        VAR s = MAX ( Cases[RiskScore] )
+        RETURN SWITCH ( TRUE (), ISBLANK ( s ), "#919191", s >= 60, "#DC2626", s >= 30, "#F59E0B", "#16A34A" )
+    MEASURE Cases[Last Engine Run] = MAX ( Cases[LastScored] )
+    MEASURE Cases[Report Title] = "Customer Success Control Tower  |  as of " & FORMAT ( [Last Engine Run], "ddd dd mmm yyyy hh:nn" )
+    MEASURE Cases[Executive Headline] =
+        [Open Cases] & " open  |  " & [Red Cases] & " Red  |  " & [Yellow Cases] & " Yellow  |  " & [Stalled Cases] & " stalled  |  "
+            & [SLA Breached] & " SLA breaches  |  " & [Escalation Candidates] & " escalation candidates  |  " & [Accounts Red] & " accounts Red"
+    // ---------------- Customer voice
+    MEASURE Signals[Open Signals] = CALCULATE ( COUNTROWS ( Signals ), Signals[IsOpen] = TRUE () )
+    MEASURE Signals[Open Complaints] = CALCULATE ( [Open Signals], Signals[SignalType] = "Complaint" )
+    MEASURE Signals[Open Additional Requests] = CALCULATE ( [Open Signals], Signals[SignalType] = "Additional Request" )
+    MEASURE Signals[Open Escalation Requests] = CALCULATE ( [Open Signals], Signals[SignalType] = "Escalation Request" )
+    MEASURE Signals[Open Account Concerns] = CALCULATE ( [Open Signals], Signals[SignalType] = "Account Concern" )
+    MEASURE Signals[Overdue Signals] =
+        VAR t = TODAY ()
+        RETURN CALCULATE ( [Open Signals], Signals[DueDate] < t )
+    MEASURE Signals[Complaint Ack Within 1 BD %] =
+        VAR acked = FILTER ( Signals, Signals[SignalType] = "Complaint" && NOT ISBLANK ( Signals[AcknowledgedOn] ) )
+        RETURN DIVIDE ( COUNTROWS ( FILTER ( acked, NETWORKDAYS ( Signals[ReceivedOn], Signals[AcknowledgedOn] ) <= 2 ) ), COUNTROWS ( acked ) )
+    MEASURE Signals[Avg Open Signal Age (days)] =
+        AVERAGEX ( FILTER ( Signals, Signals[IsOpen] = TRUE () && NOT ISBLANK ( Signals[ReceivedOn] ) ), INT ( NOW () - Signals[ReceivedOn] ) )
+    // ---------------- Escalations
+    MEASURE Escalations[Escalation Candidates] = CALCULATE ( COUNTROWS ( Escalations ), Escalations[Status] IN { "Candidate", "Pending Manager Approval" } )
+    MEASURE Escalations[Pending Manager Approval] = CALCULATE ( COUNTROWS ( Escalations ), Escalations[Status] = "Pending Manager Approval" )
+    MEASURE Escalations[Active Escalations] = CALCULATE ( COUNTROWS ( Escalations ), Escalations[Status] IN { "Approved", "Submitted", "Active" } )
+    MEASURE Escalations[Avg Readiness %] = DIVIDE ( CALCULATE ( AVERAGE ( Escalations[ReadinessPct] ), Escalations[IsOpen] = TRUE () ), 100 )
+    MEASURE Escalations[Avg Hours to Engage] = AVERAGE ( Escalations[HoursToEngage] )
+    MEASURE Escalations[Escalations Opened (30d)] =
+        VAR d = NOW () - 30
+        RETURN CALCULATE ( COUNTROWS ( Escalations ), Escalations[ProposedOn] >= d, Escalations[Status] <> "Dismissed" )
+    MEASURE Escalations[Dismissed Candidates (30d)] =
+        VAR d = NOW () - 30
+        RETURN CALCULATE ( COUNTROWS ( Escalations ), Escalations[ProposedOn] >= d, Escalations[Status] = "Dismissed" )
+    // ---------------- Accounts (360)
+    MEASURE Accounts[Accounts Red] = CALCULATE ( COUNTROWS ( Accounts ), Accounts[AccountRAG] = "Red" )
+    MEASURE Accounts[Accounts Yellow] = CALCULATE ( COUNTROWS ( Accounts ), Accounts[AccountRAG] = "Yellow" )
+    MEASURE Accounts[Accounts Worsening] = CALCULATE ( COUNTROWS ( Accounts ), Accounts[AccountRiskTrend] = "Worsening" )
+    MEASURE Accounts[Avg Account Risk] = AVERAGE ( Accounts[AccountRiskScore] )
+    MEASURE Accounts[Account RAG Color] = SWITCH ( SELECTEDVALUE ( Accounts[AccountRAG] ), "Red", "#DC2626", "Yellow", "#F59E0B", "Green", "#16A34A", "#919191" )
+    MEASURE Accounts[Days To Contract End] = IF ( HASONEVALUE ( Accounts[Title] ), INT ( MAX ( Accounts[ContractEnd] ) - TODAY () ) )
+    // ---------------- Trends (CSCT Daily Snapshot)
+    MEASURE Snapshot[Snapshot Open] = CALCULATE ( COUNTROWS ( Snapshot ), Snapshot[RowType] = "Case" )
+    MEASURE Snapshot[Snapshot Red] = CALCULATE ( COUNTROWS ( Snapshot ), Snapshot[RowType] = "Case", Snapshot[RiskLevel] = "Red" )
+    MEASURE Snapshot[Snapshot Yellow] = CALCULATE ( COUNTROWS ( Snapshot ), Snapshot[RowType] = "Case", Snapshot[RiskLevel] = "Yellow" )
+    MEASURE Snapshot[Snapshot Green] = CALCULATE ( COUNTROWS ( Snapshot ), Snapshot[RowType] = "Case", Snapshot[RiskLevel] = "Green" )
+    MEASURE Snapshot[Snapshot Stalled] = CALCULATE ( COUNTROWS ( Snapshot ), Snapshot[RowType] = "Case", Snapshot[IsStalled] = TRUE () )
+    MEASURE Snapshot[Snapshot Account Score] = CALCULATE ( AVERAGE ( Snapshot[RiskScore] ), Snapshot[RowType] = "Account" )
+    MEASURE Snapshot[Latest Snapshot Date] = CALCULATE ( MAX ( Snapshot[SnapshotDate] ), ALL ( Snapshot ) )
+    MEASURE Snapshot[Red Today] =
+        VAR d = [Latest Snapshot Date]
+        RETURN CALCULATE ( [Snapshot Red], Snapshot[SnapshotDate] = d, REMOVEFILTERS ( 'Date' ) )
+    MEASURE Snapshot[Red Prior Run] =
+        VAR d = [Latest Snapshot Date]
+        VAR p = CALCULATE ( MAX ( Snapshot[SnapshotDate] ), ALL ( Snapshot ), Snapshot[SnapshotDate] < d )
+        RETURN CALCULATE ( [Snapshot Red], Snapshot[SnapshotDate] = p, REMOVEFILTERS ( 'Date' ) )
+    MEASURE Snapshot[Red Change vs Prior Run] = [Red Today] - [Red Prior Run]
+    MEASURE Snapshot[Red 5 Runs Ago] =
+        VAR d = [Latest Snapshot Date]
+        VAR prior = CALCULATETABLE ( VALUES ( Snapshot[SnapshotDate] ), ALL ( Snapshot ), Snapshot[SnapshotDate] < d )
+        VAR p = MINX ( TOPN ( 5, prior, Snapshot[SnapshotDate], DESC ), Snapshot[SnapshotDate] )
+        RETURN CALCULATE ( [Snapshot Red], Snapshot[SnapshotDate] = p, REMOVEFILTERS ( 'Date' ) )
+    MEASURE Snapshot[Red Week-over-Week] = [Red Today] - [Red 5 Runs Ago]
+    MEASURE Snapshot[Stalled Today] =
+        VAR d = [Latest Snapshot Date]
+        RETURN CALCULATE ( [Snapshot Stalled], Snapshot[SnapshotDate] = d, REMOVEFILTERS ( 'Date' ) )
+    MEASURE Snapshot[Stalled 5 Runs Ago] =
+        VAR d = [Latest Snapshot Date]
+        VAR prior = CALCULATETABLE ( VALUES ( Snapshot[SnapshotDate] ), ALL ( Snapshot ), Snapshot[SnapshotDate] < d )
+        VAR p = MINX ( TOPN ( 5, prior, Snapshot[SnapshotDate], DESC ), Snapshot[SnapshotDate] )
+        RETURN CALCULATE ( [Snapshot Stalled], Snapshot[SnapshotDate] = p, REMOVEFILTERS ( 'Date' ) )
+    MEASURE Snapshot[Stalled Week-over-Week] = [Stalled Today] - [Stalled 5 Runs Ago]
+    // ---------------- Operating rhythm (CSCT Review Log)
+    MEASURE ReviewLog[Daily Reviews (30d)] =
+        VAR d = TODAY () - 30
+        RETURN CALCULATE ( DISTINCTCOUNT ( ReviewLog[ReviewDate] ), ReviewLog[ReviewType] = "Daily Triage", ReviewLog[ReviewDate] >= d )
+    MEASURE ReviewLog[Manager Acknowledgement %] =
+        DIVIDE ( CALCULATE ( COUNTROWS ( ReviewLog ), ReviewLog[ManagerAcknowledged] = TRUE () ), COUNTROWS ( ReviewLog ) )
+
+EVALUATE
+ROW (
+    "Open", [Open Cases], "Red", [Red Cases], "Yellow", [Yellow Cases], "Green", [Green Cases],
+    "Stalled", [Stalled Cases], "SLA breached", [SLA Breached], "Candidates", [Escalation Candidates],
+    "Active escalations", [Active Escalations], "Open complaints", [Open Complaints], "Accounts Red", [Accounts Red],
+    "Headline", [Executive Headline]
+)
