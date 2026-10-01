@@ -41,18 +41,19 @@ A CSAM typically follows dozens of open cases across many accounts, and the warn
 The same scoring engine runs in two delivery paths.
 
 ```mermaid
-flowchart LR
+flowchart TB
     subgraph Live["Live connector (local, per user)"]
+        direction LR
         OL[Outlook mailbox and calendar] -->|Microsoft Graph, delegated, via WorkIQ CLI| PY[csct_live.py]
-        CFG[csct-live-config.json<br/>account map] --> PY
+        EC[Engage Center] -->|mirp_collect.js + mirp_apply.py| CFG[csct-live-config.json<br/>account map]
+        CFG --> PY
         PY -->|serves on localhost:8787| DASH[Live dashboard<br/>customer-success-control-tower.html]
         PY -->|scheduled publish| SNAP[Shared snapshot HTML<br/>8-SharedDashboard]
-        EC[Engage Center] -->|mirp_collect.js + mirp_apply.py| CFG
     end
     subgraph M365["Microsoft 365 low-code kit"]
-        SP[SharePoint lists<br/>Deploy-CSCT-Lists.js] --> PA[Power Automate flow]
-        PA -->|Run script| OS[Office Script<br/>CSCT-RiskEngine.ts]
-        OS --> PA --> SP
+        direction LR
+        SP[SharePoint lists<br/>Deploy-CSCT-Lists.js] <--> PA[Power Automate flow]
+        PA <-->|Run script| OS[Office Script<br/>CSCT-RiskEngine.ts]
         SP --> PBI[Power BI model<br/>Power Query, DAX, theme]
     end
 ```
