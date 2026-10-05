@@ -82,6 +82,8 @@ Teams adaptive cards and the Copilot agent from the original design are not part
 
 ## Getting started
 
+> **Setting it up for your own accounts?** Follow [SETUP.md](SETUP.md). It is written so that Microsoft Scout can do the setup with you: give Scout the link to this repository and ask it to follow SETUP.md.
+
 ### 1. Explore the demo (no installation)
 
 Open [`6-SampleData/customer-success-control-tower-demo.html`](6-SampleData/customer-success-control-tower-demo.html) in Edge or Chrome. It contains 40 synthetic cases across 12 fictional accounts.
