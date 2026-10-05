@@ -80,83 +80,11 @@ flowchart TB
 
 Teams adaptive cards and the Copilot agent from the original design are not part of this repository, which is why folders 4 and 5 are missing from the numbering.
 
-## Getting started
-
-> **Setting it up for your own accounts?** Follow [SETUP.md](SETUP.md). It is written so that Microsoft Scout can do the setup with you: give Scout the link to this repository and ask it to follow SETUP.md.
-
-### 1. Explore the demo (no installation)
+## Demo
 
 Open [`6-SampleData/customer-success-control-tower-demo.html`](6-SampleData/customer-success-control-tower-demo.html) in Edge or Chrome. It contains 40 synthetic cases across 12 fictional accounts.
 
 The published-snapshot example is [`8-SharedDashboard/Customer-Success-Control-Tower-Daily.html`](8-SharedDashboard/Customer-Success-Control-Tower-Daily.html). Because it is a static example, it shows a "Not updated recently" notice when opened later.
-
-### 2. Run the live connector
-
-Requirements:
-
-- Windows with Python 3.10 or later (standard library only, no packages to install).
-- The WorkIQ CLI, installed with Microsoft Scout and signed in to Microsoft 365. The connector looks for `%USERPROFILE%\.scout\bin\workiq.cmd`; set `CSCT_WORKIQ_EXE` to use another location.
-
-Steps:
-
-1. Describe your accounts in `7-LiveConnector/csct-live-config.json` (see [Configuration](#configuration)).
-2. Run `7-LiveConnector/Start-ControlTower.cmd`. The first sync reads about four months of support-case e-mail; the dashboard opens at <http://127.0.0.1:8787/>.
-3. Stop it with `Stop-ControlTower.cmd`.
-
-Command-line options (run from `7-LiveConnector`):
-
-```text
-pythonw csct_live.py [--open]    run the connector (and open the dashboard)
-python  csct_live.py --once      one sync, print a per-case summary, exit
-python  csct_live.py --publish   one sync, publish the shared snapshot now, exit
-```
-
-Only one connector runs per user. While it runs, new e-mail is checked every `pollSeconds`, a full sync runs every `fullSyncMinutes`, and the shared snapshot is published on business days according to `settings.publish`.
-
-### 3. Track MIRP confirmations (optional)
-
-1. Run `mirp_collect.js` with Playwright in a browser session signed in to Engage Center. It replays the portal's own read-only queries for every workspace you can see and leaves the result in the page; save it as `mirp-latest.json`.
-2. Run `python mirp_apply.py [--dry-run] [--publish]` to update `MIRPStatus`, `MIRPConfirmedOn` and `MIRPConfirmedBy` in the account map and print a summary (pending accounts, confirmations that expire within 30 days, exceptions, and workspaces that are not in the account map).
-
-Try it with the fictional sample: `python 7-LiveConnector/mirp_apply.py --dry-run --force`.
-
-### 4. Deploy the Microsoft 365 kit (optional)
-
-1. **SharePoint** — open the target site, press F12, optionally set `window.CSCT_OPTIONS = { seedDemo: true }` (or `{ dryRun: true }`), then paste `Deploy-CSCT-Lists.js` into the console.
-2. **Risk engine** — in Excel on the web, open *Automate → New script*, paste `CSCT-RiskEngine.ts` and save it as `CSCT-RiskEngine`. Call it from a Power Automate flow with *Excel Online (Business) → Run script*, passing the cases, accounts, signals, escalations and configuration as `inputJson`.
-3. **Power BI** — create the `SiteUrl` parameter and the queries from `CSCT-PowerQuery.pq`, add the tables from `CSCT-Model-Tables.dax`, run `CSCT-Measures.dax` in DAX query view to add the measures, and import `CSCT-Theme.json`.
-
-## Configuration
-
-`7-LiveConnector/csct-live-config.json` has two parts. Changes apply on the next sync.
-
-**`settings`**
-
-| Setting | Default | Meaning |
-| --- | --- | --- |
-| `port` | `8787` | Local port of the dashboard and API. |
-| `pollSeconds` / `fullSyncMinutes` | `60` / `60` | Incremental check interval and full re-sync interval. |
-| `lookbackDays` | `120` | How far back case e-mail is read. |
-| `staleCaseDays` | `21` | A case with no activity for this long is treated as inactive. |
-| `calendarPastDays` / `calendarFutureDays` | `120` / `60` | Window for the last and next customer meeting per account. |
-| `dashboard` | `customer-success-control-tower.html` | Dashboard file served at `/`, relative to the connector folder. |
-| `accountTeam` | `[]` | Extra account-team addresses whose messages count as account-team updates. |
-| `publish.*` | every 10 minutes, 09:00–18:00, UTC+3 | Shared snapshot schedule, target folder and file name. `includeEmailText` and `includeContactEmails` control whether e-mail text and sender addresses are included. |
-| `mirp.ignoreWorkspaces` | `[]` | Engage Center workspaces that are not accounts (for example group-level umbrella workspaces). |
-
-**`accounts`** — one entry per customer account:
-
-| Field | Purpose |
-| --- | --- |
-| `Title`, `Group` | Account name and optional group/holding for roll-ups. |
-| `Aliases`, `Domains` | Names and e-mail domains used to map case e-mail to the account. |
-| `Segment`, `Industry`, `StrategicTier`, `ContractType` | Profile shown in Account 360. |
-| `ContractEnd` | Drives the renewal-window factor (90 days). |
-| `CSMConcern`, `CSMConcernNote` | `None`, `Watch`, `Concern` or `Critical`; adds account risk. |
-| `CustomerExecSponsor` | Shown in Account 360. |
-| `MIRPStatus`, `MIRPAsOf`, `MIRPConfirmedOn`, `MIRPConfirmedBy`, `MIRPWorkspace`, `MIRPNote` | Engage Center MIRP status, maintained by `mirp_apply.py`. A confirmation is valid for 180 days. |
-
-Cases that cannot be mapped are still shown, under the customer name from the notification or the customer's e-mail domain, and flagged as "not in the account map".
 
 ## Risk model
 

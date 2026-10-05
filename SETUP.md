@@ -270,7 +270,7 @@ Propose one entry per customer account to the user, in this format:
   | `CSMConcernNote` | Free text |
   | `CustomerExecSponsor` | Free text |
 
-  The README's Configuration section describes them.
+  [Configuration reference](#configuration-reference) describes them.
 - Accounts with no open cases can be added too. They then appear in Account 360.
 
 **5.3 Save the confirmed list**
@@ -445,6 +445,15 @@ Folder F = <CSCT>\7-LiveConnector.
 - **Publish the shared copy now:** `Invoke-RestMethod -Method Post -Uri http://127.0.0.1:<PORT>/api/publish -Headers @{ 'X-CSCT' = 'publish' }`
 - **Configuration changes** apply within a minute. Code updates need a restart.
 - **Log file:** `%LOCALAPPDATA%\CSCT\connector.log`
+- **Background work:** only one connector runs per user. While it runs, it checks for new e-mail every `pollSeconds`, runs a full sync every `fullSyncMinutes`, and publishes the shared copy on business days according to `settings.publish`.
+
+Command-line options, run from `<CSCT>\7-LiveConnector`:
+
+```text
+pythonw csct_live.py [--open]    run the connector (and open the dashboard)
+python  csct_live.py --once      one sync, print a per-case summary, exit
+python  csct_live.py --publish   one sync, publish the shared copy now, exit
+```
 
 ## Updating
 
@@ -466,7 +475,7 @@ Start-Process (Join-Path ([Environment]::GetFolderPath('Startup')) "Customer Suc
 
 - The update keeps three files: `csct-live-config.json`, `mirp-latest.json` and the published copy.
 - Repeat Step 3.2 if you changed the region.
-- Compare the `settings` section in the README with your file to see whether new settings were added.
+- Compare your file with [Configuration reference](#configuration-reference) to see whether new settings were added.
 
 ## Troubleshooting
 
@@ -491,7 +500,60 @@ Start-Process (Join-Path ([Environment]::GetFolderPath('Startup')) "Customer Suc
 - **Customer-voice keywords cover English and Turkish only.**
 - **The engine uses a fixed UTC offset** and does not switch for daylight saving.
 - **The shared copy is updated only while the PC is on** and the connector is running.
-- **The SharePoint, Power Automate and Power BI kit is separate and optional.** See the README.
+- **The SharePoint, Power Automate and Power BI kit is separate and optional.** See [Microsoft 365 kit](#microsoft-365-kit-optional).
+
+## Configuration reference
+
+`7-LiveConnector/csct-live-config.json` has two parts: `settings` and `accounts`. The connector reads the file again on every sync, so changes apply within a minute. A new `port` applies the next time the connector starts.
+
+**`settings`**
+
+| Setting | Default | Meaning |
+| --- | --- | --- |
+| `port` | `8787` | Local port of the dashboard and API. |
+| `pollSeconds` / `fullSyncMinutes` | `60` / `60` | How often new e-mail is checked, and how often a full re-sync runs. |
+| `lookbackDays` | `120` | How far back case e-mail is read. |
+| `staleCaseDays` | `21` | A case with no activity for this long is treated as inactive. |
+| `calendarPastDays` / `calendarFutureDays` | `120` / `60` | Window for the last and next customer meeting of each account. |
+| `dashboard` | `customer-success-control-tower.html` | Dashboard file served at `/`, relative to the connector folder. |
+| `accountTeam` | `[]` | Extra account-team addresses whose messages count as account-team updates. |
+| `publish.enabled` | `true` | Publish the shared read-only copy. |
+| `publish.everyMinutes`, `publish.from`, `publish.to` | `10`, `09:00`, `18:00` | Publish schedule, Monday to Friday. |
+| `publish.tzOffsetHours` | `3` | UTC offset of the schedule. Keep it the same as the offset in Step 3.2. |
+| `publish.folder`, `publish.fileName` | `..\8-SharedDashboard`, `Customer-Success-Control-Tower-Daily.html` | Where the shared copy is written. The folder is relative to the connector folder. |
+| `publish.includeEmailText` | `false` | Include e-mail text in the shared copy. |
+| `publish.includeContactEmails` | `false` | Include engineer and customer e-mail addresses in the shared copy. |
+| `mirp.ignoreWorkspaces` | `[]` | Engage Center workspaces that are not accounts, for example group-level umbrella workspaces. |
+
+**`accounts`**: one entry per customer account.
+
+| Field | Purpose |
+| --- | --- |
+| `Title`, `Group` | Account name, and an optional group or holding for roll-ups. |
+| `Aliases`, `Domains` | Names and e-mail domains used to map case e-mail to the account. |
+| `Segment`, `Industry`, `StrategicTier`, `ContractType` | Profile shown in Account 360. |
+| `ContractEnd` | Drives the renewal-window factor (90 days). |
+| `CSMConcern`, `CSMConcernNote` | `None`, `Watch`, `Concern` or `Critical`. Adds account risk. |
+| `CustomerExecSponsor` | Shown in Account 360. |
+| `MIRPStatus`, `MIRPAsOf`, `MIRPConfirmedOn`, `MIRPConfirmedBy`, `MIRPWorkspace`, `MIRPNote` | Engage Center MIRP status, maintained by `mirp_apply.py` (Step 8). A confirmation is valid for 180 days. |
+
+Cases that cannot be mapped are still shown, under the customer name from the notification or the customer's e-mail domain, and flagged as "not in the account map".
+
+## Microsoft 365 kit (optional)
+
+The repository also contains the risk engine as a low-code Microsoft 365 kit for portfolio reporting. It is independent of the live connector and is not needed for Steps 1 to 9.
+
+> **Scout:** set this up only if the user asks for it.
+
+1. **SharePoint lists.** Open the target SharePoint site and press F12 to open the browser console. Then paste `1-SharePoint/Deploy-CSCT-Lists.js` into the console. It creates eight lists with their columns, views and formatting, and skips anything that already exists, so it can be run again. To change its behaviour, set one of these options before you paste the script:
+   - `window.CSCT_OPTIONS = { seedDemo: true }` also loads a synthetic demo dataset;
+   - `window.CSCT_OPTIONS = { dryRun: true }` only prints what would be created and changes nothing.
+2. **Risk engine.** In Excel on the web, open **Automate > New script**, paste `2-PowerAutomate/CSCT-RiskEngine.ts` and save it as `CSCT-RiskEngine`. Call it from a Power Automate flow with **Excel Online (Business) > Run script**, passing the cases, accounts, signals, escalations and configuration as `inputJson`.
+3. **Power BI.** In `3-PowerBI`:
+   1. Create the `SiteUrl` parameter and the queries from `CSCT-PowerQuery.pq`.
+   2. Add the tables from `CSCT-Model-Tables.dax`.
+   3. Run `CSCT-Measures.dax` in DAX query view to add the measures.
+   4. Import `CSCT-Theme.json`.
 
 ## Uninstall
 
