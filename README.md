@@ -18,11 +18,12 @@ A CSAM typically follows dozens of open cases across many accounts, and the warn
 - **Customer voice detection** — complaints, escalation requests, RCA / SME / action-plan / workshop requests, executive mentions, sentiment and chasers, using bilingual keyword rules (English and Turkish).
 - **Escalation triggers (E1–E11)** with a suggested escalation level (L1 engineer's manager → L4 executive alignment), an escalation-pack builder and readiness checklist.
 - **Playbooks (PB-00 – PB-13)** that turn each situation into a concrete next step.
+- **Case sheet** — facts, score breakdown, recommended workflow, timeline and escalation pack for every case. While a case is still awaiting its first response, the sheet shows when it is due or since when it is overdue (around the clock for Sev 1/A, business hours for Sev B/C) and explains when only automatic notices have arrived so far.
 - **Account 360** — account risk roll-up, contract renewal window, CSM concern, MIRP (Engage Center) confirmation status and expiry, last/next customer meeting, and recommended account actions.
 - **Manager brief** — a daily summary with week-over-week trend that can be copied into Teams or e-mail.
 - **Risk simulator** — runs the production scoring function so thresholds can be calibrated with your manager.
 - **Shared read-only snapshot** — a self-contained HTML copy published on a schedule (for example to a OneDrive folder) that opens safely in the OneDrive/SharePoint preview.
-- Light and dark theme, keyboard navigation and global search.
+- Light and dark theme, keyboard navigation, global search, and a layout that adapts to narrow windows.
 
 ## Screenshots
 
@@ -35,6 +36,8 @@ A CSAM typically follows dozens of open cases across many accounts, and the warn
 | ![Escalations](docs/screenshots/escalations.png) | ![Manager brief](docs/screenshots/manager-brief.png) |
 | **Risk model simulator** | **Dark theme** |
 | ![Risk model](docs/screenshots/risk-model.png) | ![Dark theme](docs/screenshots/dark-theme.png) |
+| **Case awaiting its first response** | **Narrow window** |
+| ![Case awaiting its first response](docs/screenshots/first-response.png) | ![Account 360 in a narrow window](docs/screenshots/account-360-narrow.png) |
 
 ## Architecture
 

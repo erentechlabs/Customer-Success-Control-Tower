@@ -496,12 +496,22 @@ svg.i { width: 16px; height: 16px; display: block; flex: none; fill: currentColo
 .ring .red { stroke: var(--viz-red); } .ring .yellow { stroke: var(--viz-yellow); } .ring .green { stroke: var(--viz-green); }
 .ring b { position: absolute; inset: 0; display: grid; place-items: center; font-weight: 600; font-variant-numeric: tabular-nums; }
 
-/* Account 360 */
-.split { display: grid; grid-template-columns: 300px minmax(0, 1fr); gap: 12px; align-items: start; }
-.split > .card:first-child { position: sticky; top: var(--ph-h, 100px); max-height: calc(100vh - 60px - var(--ph-h, 100px)); overflow: hidden auto; scrollbar-width: thin; scrollbar-color: var(--ctl-strong) transparent; }
-@container page (max-width: 1040px) { .split { grid-template-columns: minmax(0, 1fr); } .split > .card:first-child { position: static; } }
+/* Account 360: list/details. Side by side, the list pane keeps its header and only the accounts scroll; the pane
+   narrows with the window. In a narrow window the panes stack and the accounts flow into columns with no scroll of their own. */
+.split { display: grid; grid-template-columns: clamp(240px, 30%, 300px) minmax(0, 1fr); gap: 12px; align-items: start; }
+.split > .card:first-child { position: sticky; top: var(--ph-h, 100px); max-height: calc(100vh - 60px - var(--ph-h, 100px)); }
+.split > .card:first-child > .ch { flex: none; }
+.split > .card:first-child .alist { flex: 1 1 auto; min-height: 0; overflow: hidden auto; scrollbar-width: thin; scrollbar-color: var(--ctl-strong) transparent; }
+.split > .card:first-child .alist > .ali { flex: none; }
+.split > .stack { container-type: inline-size; container-name: detail; }
+@container page (max-width: 720px) {
+  .split { grid-template-columns: minmax(0, 1fr); }
+  .split > .card:first-child { position: static; max-height: none; }
+  .split > .card:first-child .alist { overflow: visible; display: grid; grid-template-columns: repeat(auto-fill, minmax(208px, 1fr)); column-gap: 4px; }
+}
 .alist { display: flex; flex-direction: column; margin: 0 -8px; }
 .ali { position: relative; display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: 8px; align-items: center; height: 40px; margin: 1px 0; padding: 0 8px 0 12px; border: 0; border-radius: 4px; background: transparent; color: var(--text-1); text-align: left; }
+.ali:focus-visible { outline-offset: -2px; }
 .ali:hover { background: var(--subtle-2); }
 .ali.on { background: var(--subtle-2); }
 .ali.on::before { content: ""; position: absolute; left: 0; top: 12px; width: 3px; height: 16px; border-radius: 2px; background: var(--accent); }
@@ -509,7 +519,8 @@ svg.i { width: 16px; height: 16px; display: block; flex: none; fill: currentColo
 .ali .sc { display: inline-flex; align-items: center; gap: 8px; color: var(--text-2); font-variant-numeric: tabular-nums; }
 .ali .sc b { width: 20px; text-align: right; font-weight: 400; }
 .ahead { display: grid; grid-template-columns: 200px minmax(0, 1fr); column-gap: 24px; align-items: center; }
-@container page (max-width: 700px) { .ahead { grid-template-columns: minmax(0, 1fr); row-gap: 16px; } }
+@container detail (max-width: 640px) { .ahead { grid-template-columns: 160px minmax(0, 1fr); column-gap: 16px; } .ahead .gauge, .ahead .gauge svg { width: 160px; height: 93px; } }
+@container detail (max-width: 440px) { .ahead { grid-template-columns: minmax(0, 1fr); row-gap: 12px; } }
 .gauge { position: relative; width: 200px; height: 116px; margin: 0 auto; }
 .gauge svg { width: 200px; height: 116px; display: block; }
 .gauge path { fill: none; stroke-width: 12; stroke-linecap: round; }
@@ -524,10 +535,20 @@ svg.i { width: 16px; height: 16px; display: block; flex: none; fill: currentColo
 .a-meta > span { font: 400 12px/16px var(--font-small); color: var(--text-2); }
 .a-meta > span b { color: var(--text-1); font-weight: 400; }
 .mini { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
-@container page (max-width: 760px) { .mini { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@container detail (max-width: 520px) { .mini { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 .mini > div { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 12px 8px; text-align: center; border-radius: 4px; background: var(--card-2); border: 1px solid var(--card-stroke); }
 .mini b { font: 600 20px/28px var(--font-display); font-variant-numeric: tabular-nums; }
 .mini span { font: 400 12px/16px var(--font-small); color: var(--text-2); }
+/* Open cases inside the details pane: fit the table to the pane instead of scrolling sideways. */
+@container detail (max-width: 640px) {
+  .split .tbl.compact { table-layout: fixed; }
+  .split .tbl.compact th:nth-child(1) { width: 88px; }
+  .split .tbl.compact th:nth-child(3) { width: 72px; }
+  .split .tbl .w-case, .split .tbl .w-next { min-width: 0; max-width: none; }
+  .split .tbl.compact .w-case .ellip:first-child { white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+}
+@container detail (max-width: 760px) { .split .r11 { grid-template-columns: minmax(0, 1fr); } }
+@container detail (max-width: 520px) { .split .tbl.compact th:nth-child(3), .split .tbl.compact td:nth-child(3) { display: none; } }
 
 /* Brief, code, forms */
 .brief { max-width: 760px; }
@@ -2431,6 +2452,23 @@ const CSCT_SNAPSHOT = /*@@SNAPSHOT@@*/null;
   }
   const closeBtn = '<button class="btn subtle icon" type="button" data-close="1" aria-label="Close" title="Close">' + ico("dismiss_regular") + "</button>";
   const fact = (k, v) => '<div><div class="fk">' + k + '</div><div class="fv">' + v + "</div></div>";
+  // First-response deadline with the engine's rules: Sev 1/A around the clock, Sev B/C in business hours on business days.
+  function firstResponseDue(ci) {
+    const created = Date.parse(ci.CreatedOn || ""), k = csctSevKey(ci.Severity), h = csctSevCfg(CTX, "SLA_FirstResponse_Hours_", k);
+    if (isNaN(created) || !h) { return null; }
+    const allDay = k === "1" || k === "A", rule = ci.Severity + ": " + h + (allDay ? " hours" : " business hours");
+    if (allDay) { return { ms: created + h * HOUR, rule: rule }; }
+    const bs = CTX.cfg.BusinessHours_Start, be = CTX.cfg.BusinessHours_End;
+    let left = h * HOUR;
+    for (let day = csctLocalDay(created, CTX.tz), n = 0; n < 60; day++, n++) {
+      if (!csctIsBizDay(day, CTX)) { continue; }
+      const mid = day * DAY - CTX.tz * HOUR, s = Math.max(mid + bs * HOUR, created), e = mid + be * HOUR;
+      if (e <= s) { continue; }
+      if (e - s >= left) { return { ms: s + left, rule: rule }; }
+      left -= e - s;
+    }
+    return null;
+  }
   function showSheet(label, headHtml, bodyHtml, footHtml) {
     drawer.innerHTML = '<div class="sh-top"><div class="sh-h">' + headHtml + closeBtn + '</div><div class="sh-b" id="sheetBody">' + bodyHtml + '</div></div><div class="sh-f">' + footHtml + "</div>";
     drawer.setAttribute("aria-label", label);
@@ -2448,7 +2486,21 @@ const CSCT_SNAPSHOT = /*@@SNAPSHOT@@*/null;
     const esc = escOpenByCase[id];
     const live = REAL;
     const sevText = H(c.Severity) + (live && !ci.SeverityKnown ? ' <span class="c2">(assumed; not in notifications)</span>' : "");
-    const frText = live && !ci.SLAMeasurable ? '<span class="c2">Not measurable (' + (ci.CreatedEstimated ? "no creation notice" : "severity unknown") + ")</span>" : fmt(ci.FirstResponseOn);
+    // Awaiting the first response: show when it is due instead of an empty value.
+    const due = live && ci.SLAMeasurable && !ci.FirstResponseOn ? firstResponseDue(ci) : null;
+    const dueIso = due === null ? null : new Date(due.ms).toISOString(), frLate = due !== null && due.ms <= CTX.asOfMs;
+    const frText = live && !ci.SLAMeasurable ? '<span class="c2">Not measurable (' + (ci.CreatedEstimated ? "no creation notice" : "severity unknown") + ")</span>"
+      : due !== null ? 'Not yet<div class="fm">' + (frLate ? '<span class="tone-critical">Overdue since ' + fmt(dueIso) + "</span>" : "Due " + fmt(dueIso)) + "</div>" : fmt(ci.FirstResponseOn);
+    // Only automatic notices so far: say so, so empty values do not read as missing data.
+    let notice = "";
+    if (live && !ci.LastMicrosoftUpdate && !ci.LastCustomerUpdate && !ci.CreatedEstimated) {
+      const dueLine = due === null ? "" : frLate ? " The first response was due " + fmtT(dueIso) + " (" + due.rule + ") and is overdue." : " The first response is due " + fmtT(dueIso) + " (" + due.rule + ").";
+      const t = ci.Engineer
+        ? ["No case e-mail yet", ci.Engineer + " accepted the case, but no e-mail from the engineer or the customer has arrived so far. If they are already in touch, ask the engineer to copy the account team." + dueLine]
+        : ["No engineer on the case yet", "So far only Microsoft's automatic notices have arrived (case created " + fmtT(ci.CreatedOn) + "). The ownership notice that names the engineer usually arrives within minutes of creation; none has arrived yet." + dueLine];
+      notice = '<div class="ib' + (frLate ? " caution" : "") + '" style="margin-bottom:16px">' + ico(frLate ? "warning_filled" : "info_filled") + "<div><b>" + H(t[0]) + "</b>" + H(t[1]) + "</div></div>";
+    }
+    const noneYet = '<span class="c3">None yet</span>';
     const head = '<div><div class="sh-kpi">' + status(c.RiskLevel) + score(c.RiskScore, c.RiskLevel) + trendText(c.RiskTrend, c.RiskScorePrev) + "</div><h2>" + H(c.Title) + '</h2><div class="sh-meta"><span><span class="mono">' + H(c.CaseId) + "</span>" + DOT + H(c.Account) + DOT + H(c.Severity) + (ci.SupportAreaPath ? DOT + H(ci.SupportAreaPath) : "") + "</span></div></div>";
     const contacts = ci.CustomerContacts || [], cmails = ci.ContactMails || {};
     // Addresses are mailto links in the live dashboard; the shared copy runs in a sandboxed preview, so they stay plain text there.
@@ -2458,12 +2510,14 @@ const CSCT_SNAPSHOT = /*@@SNAPSHOT@@*/null;
     const contactText = contacts.length ? contacts.slice(0, 3).map((n) => '<div class="fp">' + H(n) + mailLine(cmails[n]) + "</div>").join("") + (contacts.length > 3 ? '<div class="fm">+' + (contacts.length - 3) + " more in the timeline</div>" : "")
       : '<span class="c3">' + (live ? "No customer e-mail yet" : "Not recorded") + "</span>";
     const facts = '<div class="facts">' + fact("Status", H(sc(c.Status))) + fact("Ball in court", H(c.BallInCourt)) +
-      fact("Engineer", (ci.Engineer ? H(ci.Engineer) : '<span class="c3">Not assigned</span>') + engMail + '<div class="fm">' + (ci.OwnershipChanges || 0) + " ownership change" + ((ci.OwnershipChanges || 0) === 1 ? "" : "s") + "</div>") + fact("Customer contact", contactText) +
+      fact("Engineer", ci.Engineer ? H(ci.Engineer) + engMail + '<div class="fm">' + (ci.OwnershipChanges || 0) + " ownership change" + ((ci.OwnershipChanges || 0) === 1 ? "" : "s") + "</div>"
+        : '<span class="c3">Not assigned</span>' + (live ? '<div class="fm">No ownership notice yet</div>' : "")) + fact("Customer contact", contactText) +
       fact("Case number", caseNo(c.CaseId)) + fact("Days open", c.DaysOpen) +
-      fact("Created", fmt(ci.CreatedOn) + (live && ci.CreatedEstimated ? ' <span class="c2">(from case number)</span>' : "")) + fact("First response", frText) + fact("Last Microsoft update", fmt(ci.LastMicrosoftUpdate)) + fact("Last customer update", fmt(ci.LastCustomerUpdate)) +
+      fact("Created", fmt(ci.CreatedOn) + (live && ci.CreatedEstimated ? ' <span class="c2">(from case number)</span>' : "")) + fact("First response", frText) +
+      fact("Last Microsoft update", ci.LastMicrosoftUpdate || !live ? fmt(ci.LastMicrosoftUpdate) : noneYet) + fact("Last customer update", ci.LastCustomerUpdate || !live ? fmt(ci.LastCustomerUpdate) : noneYet) +
       fact("Idle", c.BizDaysIdle + " business days (" + H(c.IdleSide) + " side)") + fact("SLA", slaCell(c.SLAStatus)) + fact("Stall", H(c.StallType)) + fact("Sentiment", H(ci.CustomerSentiment) + (ci.ExecVisibility ? ' <span class="c2">(exec visibility)</span>' : "")) +
       fact("Next action", H(ci.NextAction || "Not set")) + fact(live ? "Severity" : "Next action due", live ? sevText : fmt(ci.NextActionDue, false)) + "</div>";
-    let b = '<div class="sh-sec"><h3>Facts</h3>' + facts + "</div>";
+    let b = '<div class="sh-sec"><h3>Facts</h3>' + notice + facts + "</div>";
     b += '<div class="sh-sec"><h3>Score breakdown</h3>' + factorBars(c) + driversList(c) +
       (c.Overrides || c.Floors ? '<div class="cap c2" style="margin-top:8px">' + (c.Overrides ? "Overrides: " + H(ruleText(c.Overrides)) : "") + (c.Overrides && c.Floors ? DOT : "") + (c.Floors ? "Floors: " + H(ruleText(c.Floors)) : "") + "</div>" : "") + "</div>";
     b += '<div class="sh-sec"><h3>Recommended workflow</h3><div class="ib">' + ico("info_filled") + "<div><b>" + H(c.PlaybookId) + "</b>" + H(c.RecommendedAction) + "</div></div></div>";
@@ -2498,6 +2552,8 @@ const CSCT_SNAPSHOT = /*@@SNAPSHOT@@*/null;
   function render(animate) {
     renderNav();
     if (!OUT) { return; }
+    // Account 360 rebuilds its list on every render; keep the list where it was.
+    const prevList = app.querySelector(".split .alist"), listTop = prevList ? prevList.scrollTop : 0;
     const p = PAGES.filter((x) => x.id === state.tab)[0];
     const out = RENDER[state.tab]();
     ph.innerHTML = '<div class="ph-in"><div class="ph-tx"><h1>' + H(p.label) + "</h1>" + (out.sub ? "<p>" + H(out.sub) + "</p>" : "") + "</div>" + (out.cmds ? '<div class="ph-cmds">' + out.cmds + "</div>" : "") + "</div>";
@@ -2508,6 +2564,15 @@ const CSCT_SNAPSHOT = /*@@SNAPSHOT@@*/null;
     }[MODE]) + "</p>";
     if (animate) { app.classList.remove("enter"); void app.offsetWidth; app.classList.add("enter"); }
     scroller.style.setProperty("--ph-h", ph.offsetHeight + "px");
+    const newList = app.querySelector(".split .alist");
+    if (newList) {
+      newList.scrollTop = listTop;
+      const on = newList.querySelector(".ali.on");
+      if (on && newList.scrollHeight > newList.clientHeight + 1) {
+        const r = on.getBoundingClientRect(), box = newList.getBoundingClientRect();
+        if (r.top < box.top || r.bottom > box.bottom) { newList.scrollTop += r.top - box.top - (box.height - r.height) / 2; }
+      }
+    }
     if (ro) { ro.disconnect(); }
     const el = $("trendChart");
     if (el) {
@@ -2544,7 +2609,21 @@ const CSCT_SNAPSHOT = /*@@SNAPSHOT@@*/null;
     const tab = t.closest("[data-tab]"); if (tab) { go(tab.getAttribute("data-tab")); return; }
     const g = t.closest("[data-goto]"); if (g) { if (g.getAttribute("data-filter")) { state.filter = g.getAttribute("data-filter"); } go(g.getAttribute("data-goto")); return; }
     const fl = t.closest("[data-filter]"); if (fl) { state.filter = fl.getAttribute("data-filter"); render(false); return; }
-    const ac = t.closest("[data-account]"); if (ac) { const same = state.tab === "acct"; state.account = ac.getAttribute("data-account"); if (same) { render(false); scroller.scrollTop = 0; } else { go("acct"); } return; }
+    const ac = t.closest("[data-account]");
+    if (ac) {
+      const same = state.tab === "acct", inList = !!ac.closest(".split .alist");
+      state.account = ac.getAttribute("data-account");
+      if (!same) { go("acct"); return; }
+      const keep = scroller.scrollTop;
+      render(false);
+      // Side by side the list stays put and the new account's details start at the top; stacked, bring the details into view under the list.
+      const det = inList ? app.querySelector(".split > .stack") : null;
+      if (det && det.getBoundingClientRect().left < app.querySelector(".split").getBoundingClientRect().left + 24) {
+        scroller.scrollTop = keep + det.getBoundingClientRect().top - scroller.getBoundingClientRect().top - ph.offsetHeight - 12;
+      } else { scroller.scrollTop = 0; }
+      const sel = app.querySelector('.ali.on'); if (sel && inList) { sel.focus({ preventScroll: true }); }
+      return;
+    }
   });
   asbList.addEventListener("mousedown", (e) => { const s = e.target.closest("[data-sug]"); e.preventDefault(); if (s) { pickSug(Number(s.getAttribute("data-sug"))); } });
   search.addEventListener("input", () => { state.q = search.value; if (!OUT) { return; } if (state.tab === "queue") { render(false); } else { showSug(); } });

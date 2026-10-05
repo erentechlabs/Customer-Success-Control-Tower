@@ -211,7 +211,7 @@ def graph_all(path, max_pages=20):
 
 # ----------------------------------------------------------------------------- message parsing
 # Patterns below match both English and Turkish wording, because customer and support e-mail arrives in both languages.
-TRACK_RX =  re.compile(r"TrackingID#\s*(\d{16})(\d{3})?(?!\d)", re.I)
+TRACK_RX = re.compile(r"TrackingID#\s*(\d{16})(\d{3})?(?!\d)", re.I)
 CASE_RX = re.compile(r"\bcase(?:\s+number)?\s*[:#]?\s*(\d{16})(\d{3})?(?!\d)", re.I)
 BARE_RX = re.compile(r"(?<!\d)(2[4-9](?:0[1-9]|1[0-2])(?:0[1-9]|[12]\d|3[01])\d{10})(\d{3})?(?!\d)")
 BANNER_RX = re.compile(
