@@ -5,6 +5,11 @@ __pycache__/
 # Connector runtime files
 *.tmp
 *.log
+7-LiveConnector/csct-live-config.json
+7-LiveConnector/mirp-latest.json
+8-SharedDashboard/Customer-Success-Control-Tower-Daily.html
+attention-state.json
+connector.lock
 
 # OS and editor files
 .DS_Store

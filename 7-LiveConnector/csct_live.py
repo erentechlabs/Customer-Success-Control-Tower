@@ -19,6 +19,9 @@ settings.publish.folder (default ..\8-SharedDashboard, synced by OneDrive) for t
 folder is shared with. Any link to that file (OneDrive, Teams, e-mail) shows the latest copy.
 That copy never has mailbox links; e-mail text only if publish.includeEmailText is true, and the sender addresses of
 engineers and customer contacts only if publish.includeContactEmails is true.
+The attention center never sends messages or escalates cases. Only case identifiers, operational
+thresholds, importance and review/snooze markers are stored in
+%LOCALAPPDATA%\CSCT\attention-state.json. These preferences are not included in shared snapshots.
 
 Usage: Start-ControlTower.cmd / Stop-ControlTower.cmd   start (opens the dashboard) / stop
        Auto-start: "Customer Success Control Tower" shortcut in the Windows Startup folder (shell:startup)
@@ -45,13 +48,15 @@ import urllib.request
 import webbrowser
 from datetime import datetime, timedelta, timezone
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from csct_attention import AttentionConflict, AttentionStore
 
-VERSION = "1.4.0"
+VERSION = "1.5.0"
 HERE = os.path.dirname(os.path.abspath(__file__))
 CONFIG_PATH = os.path.join(HERE, "csct-live-config.json")
 TEMPLATE_PATH = os.path.join(HERE, "snapshot-template.html")
 SNAP_PLACEHOLDER = "/*@@SNAPSHOT@@*/null"
 LOG_DIR = os.path.join(os.environ.get("LOCALAPPDATA") or HERE, "CSCT")
+ATTENTION = AttentionStore(LOG_DIR)
 NO_WINDOW = 0x08000000 if os.name == "nt" else 0
 GRAPH = "https://graph.microsoft.com/v1.0"
 NOTIF = "notifications@techsupport.microsoft.com"
@@ -876,6 +881,12 @@ class Handler(BaseHTTPRequestHandler):
             with STATE.lock:
                 body = json.dumps({"app": "csct-live", "connector": VERSION, "state": STATE.status.get("state")})
             return self._send(200, body, extra={"Access-Control-Allow-Origin": "*"})
+        if url.path == "/api/attention":
+            try:
+                return self._send(200, json.dumps(ATTENTION.read()))
+            except (OSError, ValueError) as err:
+                log("follow-up preferences could not be read: %s" % err)
+                return self._send(500, json.dumps({"error": str(err)}))
         if url.path == "/api/snapshot":
             want = (urllib.parse.parse_qs(url.query).get("v") or ["-1"])[0]
             with STATE.lock:
@@ -893,6 +904,23 @@ class Handler(BaseHTTPRequestHandler):
         url = urllib.parse.urlparse(self.path)
         origin = (self.headers.get("Origin") or "").lower()
         allowed = ("http://127.0.0.1:%d" % self.server.server_port, "http://localhost:%d" % self.server.server_port)
+        if url.path == "/api/attention":
+            if origin not in allowed or self.headers.get("X-CSCT") != "attention":
+                return self._send(403, '{"error":"forbidden"}')
+            try:
+                length = int(self.headers.get("Content-Length") or "0")
+                if not 0 < length <= 8192:
+                    raise ValueError("Follow-up request must be between 1 and 8192 bytes")
+                body = json.loads(self.rfile.read(length).decode("utf-8"))
+                state = ATTENTION.update(body)
+            except AttentionConflict as err:
+                return self._send(409, json.dumps({"error": str(err)}))
+            except (ValueError, UnicodeError) as err:
+                return self._send(400, json.dumps({"error": str(err)}))
+            except OSError as err:
+                log("follow-up preferences could not be saved: %s" % err)
+                return self._send(500, json.dumps({"error": "Could not save follow-up preferences: %s" % err}))
+            return self._send(200, json.dumps(state))
         if url.path == "/api/sync" and origin in allowed:
             STATE.wake.set()
             return self._send(202, '{"ok":true}')

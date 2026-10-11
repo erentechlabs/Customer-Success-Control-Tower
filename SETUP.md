@@ -29,6 +29,7 @@ software, share anything or create automations.
    - the published snapshot
    - logs
    - e-mail content
+   - `%LOCALAPPDATA%\CSCT\attention-state.json` (case numbers and private review preferences)
 2. **Ask first.** Get the user's approval before you:
    - install software;
    - share a file or folder;
@@ -38,9 +39,11 @@ software, share anything or create automations.
    Before you share anything, show the user who will get access and what they will see.
 3. **Never type passwords.** If a sign-in prompt appears, the user completes it.
 4. **Never print, save or reuse access tokens or request headers.**
-5. **Do not change the code.** Only two things are meant to change:
+5. **For normal installation, do not change the code.** The user-specific files are:
    - `7-LiveConnector/csct-live-config.json`;
    - for region settings, the `CSCT_SPEC` block in two HTML files (Step 3.2).
+
+   Copy the example configuration to the ignored runtime filename before configuring it. Never replace a working personal configuration with the example. Development rebuilds belong to the final developer section, not the normal installation.
 
 ## Placeholders
 
@@ -109,11 +112,20 @@ Get-ChildItem $csct -Name
 
 If Scout uses a different working folder, set `$parent` to that folder.
 
-**Check:** the folder contains `1-SharePoint` through `8-SharedDashboard`, `README.md` and `SETUP.md`. Use this path as `<CSCT>` from now on.
+**Check:** the folder contains `1-SharePoint`, `2-PowerAutomate`, `3-PowerBI`, `6-SampleData`, `7-LiveConnector`, `8-SharedDashboard`, `tools`, `tests`, `README.md` and `SETUP.md`. Use this path as `<CSCT>` from now on.
 
 ## Step 3: Configure
 
-All settings live in `<CSCT>\7-LiveConnector\csct-live-config.json`. The connector picks up changes within a minute, so you do not need to restart it.
+The repository contains `csct-live-config.example.json`, not a personal configuration. Create your runtime file first:
+
+```powershell
+$csct = "<CSCT>"
+$config = Join-Path $csct "7-LiveConnector\csct-live-config.json"
+if (Test-Path $config) { throw "A personal configuration already exists. Keep it; do not overwrite it with the example." }
+Copy-Item (Join-Path $csct "7-LiveConnector\csct-live-config.example.json") $config
+```
+
+All user settings live in this ignored runtime file. Most changes apply on the next sync; a port change needs a restart.
 
 Keep the file's layout as it is:
 
@@ -125,7 +137,7 @@ The snippets below write it that way, and `mirp_apply.py` relies on it.
 
 ### 3.1 Remove the fictional sample data
 
-The repository ships with a fictional account map (Contoso, Fabrikam and others) and example output files. Remove them so nothing fictional is shown or shared:
+The example configuration contains fictional accounts (Contoso, Fabrikam and others). Clear them before the first mailbox sync. The interactive demo and `Customer-Success-Control-Tower-Example.html` stay fictional and separate from your live files:
 
 ```powershell
 $csct = "<CSCT>"
@@ -138,8 +150,9 @@ settings = json.dumps(cfg["settings"], ensure_ascii=False, indent=2).replace("\n
 io.open(p, "w", encoding="utf-8", newline="\n").write('{\n  "settings": ' + settings + ',\n  "accounts": [\n  ]\n}\n')
 print("sample accounts removed")
 '@ | python - "$csct\7-LiveConnector\csct-live-config.json"
-Remove-Item "$csct\7-LiveConnector\mirp-latest.json", "$csct\8-SharedDashboard\Customer-Success-Control-Tower-Daily.html" -ErrorAction SilentlyContinue
 ```
+
+Do not delete existing personal MIRP results or a published shared copy when upgrading. A fresh installation has neither. MIRP results are written to the ignored `mirp-latest.json`; the tracked `mirp-latest.example.json` is only a fictional format example.
 
 ### 3.2 Region: time zone, working hours and holidays
 
@@ -397,8 +410,8 @@ Connector URL U = http://127.0.0.1:<PORT>. Folder F = <CSCT>\7-LiveConnector.
 
 1. Make sure the connector is running: Invoke-RestMethod U/api/ping -TimeoutSec 5. If it does not answer, start it without a browser: Start-Process (Join-Path ([Environment]::GetFolderPath('Startup')) 'Customer Success Control Tower.lnk'), then poll U/api/ping every 10 seconds for up to 5 minutes until "state" is "ok". If it still fails, read sync.error from U/api/snapshot and send me one short message saying what failed and that I can run F\Start-ControlTower.cmd.
 2. Publish the shared copy: Invoke-RestMethod -Method Post -Uri U/api/publish -Headers @{ 'X-CSCT' = 'publish' }. Keep publishedAt (UTC) for the message. Skip this if the shared copy is not used.
-3. Open U/ in the browser, wait until window.csctFindings() returns an object (retry for up to 30 seconds) and read it with a browser evaluate call. It contains summary, cases (risk, newlyRed, trend, stall, sla, triggers, suggestedLevel, playbook, action, drivers, ball, idleBusinessDays, engineer, nextAction), candidates, signals (complaints, escalation requests and additional requests with due and overdue), escalations, accounts, newCases and closedRecently.
-4. Include an item when a case is Red, turned Red today, or is Yellow and worsening; a case is stalled or its first-response SLA is breached or at risk; a case is an escalation candidate (give the suggested level and the triggers in plain words); there is an open complaint, escalation request or additional request (flag overdue ones, including requests on closed cases); or an account is Red or worsening. For each item propose ONE concrete next step from its playbook, for example nudge the engineer (PB-05), nudge the customer (PB-06), acknowledge the complaint and agree a recovery plan (PB-07), route the request and confirm an owner and date (PB-08), or prepare an L1 or L2 escalation pack. Prefer steps I can approve with one word. Skip unchanged items unless they are overdue.
+3. Open U/ in the browser, wait until window.csctFindings() returns an object (retry for up to 30 seconds) and read it with a browser evaluate call. It contains summary, cases, candidates, signals, escalations, accounts, newCases, closedRecently and attention. Attention includes ready, dataFresh, needsReview, snoozed, reviewed, visibilityChecks and operational thresholds. If ready or dataFresh is false, do not propose a stale reply reminder; report the sync/preference issue instead.
+4. Include an item when a case is Red, turned Red today, or is Yellow and worsening; a case is stalled or its first-response SLA is breached or at risk; a case is an escalation candidate; there is an open complaint, escalation request or additional request; an account is Red or worsening; or attention.needsReview contains an unresolved operational wait. Consolidate multiple reasons into ONE item per case. Respect attention.snoozed and attention.reviewed for operational reminders; independent critical incidents still need review. Propose one concrete next step, not a message to other people. Skip unchanged items unless they are overdue. Never turn a visibility check or inferred closure into a claimed engineer failure.
 5. Write ONE concise message in <LANGUAGE>, without emojis. First line: "Control Tower end of day, <date>: <N> open cases (<Red> Red, <Yellow> Yellow). Shared copy updated <local time>." Then "Actions waiting for your approval:" as a numbered list, most urgent first, at most 7 items, each as: customer · last 6 digits of the case number · one-sentence status and reason · proposed action. Then: "Reply with the numbers you want me to do (for example 1 and 3). Nothing is sent to anyone without your approval." Use case titles and short reasons only; never paste e-mail text.
 6. If nothing needs attention, reply with the single line "Control Tower end of day: shared copy updated, nothing needs action." and do not send a Teams notification.
 ```
@@ -433,18 +446,21 @@ Folder F = <CSCT>\7-LiveConnector.
 | --- | --- |
 | Connector runs | `Invoke-RestMethod http://127.0.0.1:<PORT>/api/ping` reports `state: ok`. |
 | Cases are mapped | The Step 5 listing shows `in map` on every line. |
+| Follow-up preferences | `Invoke-RestMethod http://127.0.0.1:<PORT>/api/attention` returns `revision`, `rules` and `cases`. Attention center lists waits; the threshold form is in Settings & rules. |
+| Closed cases | Cases > Closed opens recorded history. Closure pending and Inactive (inferred) are not counted as confirmed closures. |
 | Starts with Windows | The Startup shortcut from Step 6 exists. |
 | Shared copy (if used) | On a business day, `Customer-Success-Control-Tower-Daily.html` is newer than one schedule interval. |
 | Automations (if used) | They appear in Scout's automation list, and **Run now** produces the expected message. |
 
 ## Daily use
 
-- **Live dashboard:** `http://127.0.0.1:<PORT>/`. It updates every minute while the connector runs. The pages are Control tower, Action queue, Escalations, Customer voice, Account 360, Manager brief and Risk model.
+- **Live dashboard:** `http://127.0.0.1:<PORT>/`. Mail is checked every minute while the connector runs. Navigation: Control tower, Cases (Open / Closed), Attention center, Escalations, Customer voice, Account 360, Manager brief and Settings & rules.
 - **Start:** `Start-ControlTower.cmd`. It opens the dashboard.
 - **Stop:** `Stop-ControlTower.cmd`.
 - **Publish the shared copy now:** `Invoke-RestMethod -Method Post -Uri http://127.0.0.1:<PORT>/api/publish -Headers @{ 'X-CSCT' = 'publish' }`
 - **Configuration changes** apply within a minute. Code updates need a restart.
 - **Log file:** `%LOCALAPPDATA%\CSCT\connector.log`
+- **Private follow-up preferences:** `%LOCALAPPDATA%\CSCT\attention-state.json`. They persist across browser/connector restarts but are never part of a shared snapshot.
 - **Background work:** only one connector runs per user. While it runs, it checks for new e-mail every `pollSeconds`, runs a full sync every `fullSyncMinutes`, and publishes the shared copy on business days according to `settings.publish`.
 
 Command-line options, run from `<CSCT>\7-LiveConnector`:
@@ -454,6 +470,31 @@ pythonw csct_live.py [--open]    run the connector (and open the dashboard)
 python  csct_live.py --once      one sync, print a per-case summary, exit
 python  csct_live.py --publish   one sync, publish the shared copy now, exit
 ```
+
+## Attention center: quiet follow-up
+
+No separate installation or automation is needed. The feature evaluates the mailbox events already loaded by the connector.
+
+1. Open **Attention center**. It is a list of case, reason and elapsed time, not a wall of actions.
+2. Select a case. Its follow-up detail shows the evidence and the next step. **Mark reviewed** records that this episode was reviewed; it does not send a message or mark the case resolved.
+3. Open **More options** only if needed: importance (Standard / Important / Critical), snooze for one hour or to the next business morning, and a preview/copy-only draft.
+4. Use **Settings & rules > Follow-up thresholds** to adjust the operational targets. These are not contractual SLA settings.
+
+| Target | Default |
+| --- | --- |
+| Sev 1 / A | 1 elapsed hour, 24/7 |
+| Standard Sev B | 4 business hours |
+| Standard Sev C | 8 business hours |
+| Important | At most 2 business hours |
+| Critical importance | At most 1 business hour |
+| Missing ownership | At most 2 business hours, or the shorter case target |
+| Standard product-group cadence | At least 8 business hours; urgent/important cases retain their shorter target |
+
+The existing business-hour calendar (Step 3.2) also drives these timers. An ownership notice is not a technical reply. A customer chaser or account-team message does not reset the unanswered wait. An engineer reply clears its reason once it reaches this mailbox; another unresolved reason can keep the case in the list. A new wait episode or higher urgency returns a reviewed/snoozed case to review.
+
+**Teams:** the attention center itself never sends reminders to anyone. The optional end-of-day automation from Step 9 is a separate, consolidated review for the signed-in user. It does not message engineers, customers or managers without a separate preview and explicit approval.
+
+**History:** Cases > Closed defaults to official closure/archive notifications. Expand **Filter history** for account, date range, customer-agreed closure pending confirmation or inactivity-inferred records. Select any record for outcome, contacts, dates, escalation history and the complete available timeline. Earlier updates are expandable; nothing is deleted. Account 360 also provides case history.
 
 ## Updating
 
@@ -473,7 +514,9 @@ Remove-Item $new, "$new.zip" -Recurse -Force
 Start-Process (Join-Path ([Environment]::GetFolderPath('Startup')) "Customer Success Control Tower.lnk")
 ```
 
-- The update keeps three files: `csct-live-config.json`, `mirp-latest.json` and the published copy.
+- The update keeps `csct-live-config.json`, `mirp-latest.json` and the published copy. It never touches `%LOCALAPPDATA%\CSCT\attention-state.json`.
+- Upgrading from 1.4 adds `csct_attention.py`; keep the connector folder intact. Restart the connector, then reload any open dashboard tab to load the new UI.
+- The repository now tracks only `.example.json` configuration/MIRP templates and a separate `Customer-Success-Control-Tower-Example.html`. Your actual runtime files are ignored by Git. Never `git add -f` them.
 - Repeat Step 3.2 if you changed the region.
 - Compare your file with [Configuration reference](#configuration-reference) to see whether new settings were added.
 
@@ -493,6 +536,11 @@ Start-Process (Join-Path ([Environment]::GetFolderPath('Startup')) "Customer Suc
 | The shared copy does not change while it is open | The OneDrive preview does not refresh by itself. Reload the page. |
 | The MIRP collector returns `signed-out` | Sign in to Engage Center in Scout's browser, then run the collector again. |
 | `mirp_apply.py` says the results are too old | Run the collector again. Results older than 36 hours are refused. |
+| Attention center says preferences are unavailable | Retry. If the local JSON is corrupt, back it up privately and restore a known-good copy; do not silently replace it or commit it. |
+| A preference changed in another tab | The revision check rejected the stale edit. Reload and try again. |
+| A wait remains after an engineer replied | Confirm that the reply reached this mailbox and the connector is fresh. A different remaining reason can keep the case listed. |
+| Last rows appear clipped in Scout's visible browser | Do not leave a fixed Playwright viewport larger than the real window. Restore native sizing with `page.setViewportSize({width:0,height:0})` and use actual window resizing for UI checks. |
+| Closed history seems incomplete | It is limited to loaded e-mails, not the support portal's complete case register. Increase `lookbackDays` if appropriate; no OneSupport record is downloaded. |
 
 ## Good to know
 
@@ -571,3 +619,30 @@ Then finish the cleanup:
 1. Delete the Scout automations from Step 9.
 2. Stop sharing `8-SharedDashboard`.
 3. Delete the `<CSCT>` folder.
+
+## Developer builds and checks
+
+Normal users run the included HTML files; they do not need to build them. The source UI and engine are included so changes can be reproduced.
+
+From the repository folder:
+
+```powershell
+python tools\make_sample.py
+python tools\build_dashboard.py
+python -m unittest discover -s tests -p "test_*.py"
+node tests\attention.test.js
+```
+
+The builder reads only tracked `tools` sources, `spec.json`, `icons.json`, the fictional mailbox fixture and the example configuration. It does not read a personal runtime configuration, a real mailbox, preference state or an existing shared snapshot. It overwrites the generated live dashboard, snapshot template, interactive demo and separate fictional snapshot example, not user data files.
+
+`node` is needed only for the JavaScript development checks; Python and the prebuilt HTML are enough for normal use. No npm packages are required.
+
+For screenshots, serve the fictional demo locally:
+
+```powershell
+python -m http.server 8792 --bind 127.0.0.1
+```
+
+Open `http://127.0.0.1:8792/6-SampleData/customer-success-control-tower-demo.html`. Every case, person and e-mail address is invented; demo changes are in-memory and reset on reload. Never capture the user's live connector or actual shared dashboard for public screenshots. Stop this temporary server when finished. When using Scout's visible browser, restore its native viewport after layout checks instead of leaving a fixed test viewport.
+
+`tools\capture_screenshots.js` is a Playwright tool snippet for this demo page. It refuses non-demo input and saves PNGs under `csct-public-images` in Scout's execution working directory; create that folder before running it. Copy the resulting fictional captures into `docs\screenshots`. Its `finally` block restores native viewport sizing.

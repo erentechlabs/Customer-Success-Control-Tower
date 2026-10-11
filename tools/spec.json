@@ -1,0 +1,638 @@
+{
+  "config": [
+    {
+      "Title": "TZ_OffsetHours",
+      "Value": 3
+    },
+    {
+      "Title": "BusinessHours_Start",
+      "Value": 9
+    },
+    {
+      "Title": "BusinessHours_End",
+      "Value": 18
+    },
+    {
+      "Title": "SLA_FirstResponse_Hours_Sev1",
+      "Value": 1
+    },
+    {
+      "Title": "SLA_FirstResponse_Hours_SevA",
+      "Value": 1
+    },
+    {
+      "Title": "SLA_FirstResponse_Hours_SevB",
+      "Value": 2
+    },
+    {
+      "Title": "SLA_FirstResponse_Hours_SevC",
+      "Value": 4
+    },
+    {
+      "Title": "Stall_BD_Sev1",
+      "Value": 1
+    },
+    {
+      "Title": "Stall_BD_SevA",
+      "Value": 1
+    },
+    {
+      "Title": "Stall_BD_SevB",
+      "Value": 3
+    },
+    {
+      "Title": "Stall_BD_SevC",
+      "Value": 5
+    },
+    {
+      "Title": "Stall_CustomerSide_BD",
+      "Value": 5
+    },
+    {
+      "Title": "Stall_CustomerSide_BD_SevA",
+      "Value": 2
+    },
+    {
+      "Title": "Age_Target_Days_Sev1",
+      "Value": 3
+    },
+    {
+      "Title": "Age_Target_Days_SevA",
+      "Value": 7
+    },
+    {
+      "Title": "Age_Target_Days_SevB",
+      "Value": 14
+    },
+    {
+      "Title": "Age_Target_Days_SevC",
+      "Value": 30
+    },
+    {
+      "Title": "RAG_Yellow_Min",
+      "Value": 30
+    },
+    {
+      "Title": "RAG_Red_Min",
+      "Value": 60
+    },
+    {
+      "Title": "W_Sev1",
+      "Value": 35
+    },
+    {
+      "Title": "W_SevA",
+      "Value": 22
+    },
+    {
+      "Title": "W_SevB",
+      "Value": 12
+    },
+    {
+      "Title": "W_SevC",
+      "Value": 3
+    },
+    {
+      "Title": "W_IdleHalf",
+      "Value": 8
+    },
+    {
+      "Title": "W_Idle1x",
+      "Value": 18
+    },
+    {
+      "Title": "W_Idle2x",
+      "Value": 25
+    },
+    {
+      "Title": "W_CustIdle1x",
+      "Value": 6
+    },
+    {
+      "Title": "W_CustIdle2x",
+      "Value": 10
+    },
+    {
+      "Title": "W_BlindSpot",
+      "Value": 5
+    },
+    {
+      "Title": "Cap_Momentum",
+      "Value": 30
+    },
+    {
+      "Title": "W_AgeHalf",
+      "Value": 5
+    },
+    {
+      "Title": "W_Age1x",
+      "Value": 15
+    },
+    {
+      "Title": "W_Age2x",
+      "Value": 20
+    },
+    {
+      "Title": "W_SLA_AwaitingFirst",
+      "Value": 15
+    },
+    {
+      "Title": "W_SLA_AtRisk",
+      "Value": 5
+    },
+    {
+      "Title": "W_SLA_Late",
+      "Value": 5
+    },
+    {
+      "Title": "W_NextActionOverdue",
+      "Value": 8
+    },
+    {
+      "Title": "W_ETAMissed",
+      "Value": 8
+    },
+    {
+      "Title": "Cap_SLA",
+      "Value": 15
+    },
+    {
+      "Title": "W_Frustrated",
+      "Value": 8
+    },
+    {
+      "Title": "W_Angry",
+      "Value": 15
+    },
+    {
+      "Title": "W_Complaint",
+      "Value": 8
+    },
+    {
+      "Title": "W_Chasers",
+      "Value": 6
+    },
+    {
+      "Title": "W_RequestOverdue",
+      "Value": 4
+    },
+    {
+      "Title": "Cap_Voice",
+      "Value": 20
+    },
+    {
+      "Title": "W_Exec",
+      "Value": 8
+    },
+    {
+      "Title": "W_ImpactHigh",
+      "Value": 4
+    },
+    {
+      "Title": "W_ImpactCritical",
+      "Value": 8
+    },
+    {
+      "Title": "W_Churn",
+      "Value": 5
+    },
+    {
+      "Title": "W_Reopen",
+      "Value": 5
+    },
+    {
+      "Title": "W_SevRaised",
+      "Value": 5
+    },
+    {
+      "Title": "W_AcctConcern",
+      "Value": 3
+    },
+    {
+      "Title": "W_AcctCritical",
+      "Value": 6
+    },
+    {
+      "Title": "W_Renewal",
+      "Value": 3
+    },
+    {
+      "Title": "Cap_Exposure",
+      "Value": 15
+    },
+    {
+      "Title": "Chasers_Min",
+      "Value": 2
+    },
+    {
+      "Title": "Churn_Min",
+      "Value": 3
+    },
+    {
+      "Title": "Floor_Age_Days",
+      "Value": 30
+    },
+    {
+      "Title": "Recent_Days",
+      "Value": 7
+    },
+    {
+      "Title": "Renewal_Window_Days",
+      "Value": 90
+    },
+    {
+      "Title": "Trend_Delta",
+      "Value": 10
+    },
+    {
+      "Title": "Pattern_Min_Cases",
+      "Value": 3
+    },
+    {
+      "Title": "Pattern_Window_Days",
+      "Value": 14
+    },
+    {
+      "Title": "A_WorstCaseFactor",
+      "Value": 0.4
+    },
+    {
+      "Title": "A_PerRed",
+      "Value": 10
+    },
+    {
+      "Title": "A_Cap_Red",
+      "Value": 20
+    },
+    {
+      "Title": "A_PerYellow",
+      "Value": 3
+    },
+    {
+      "Title": "A_Cap_Yellow",
+      "Value": 9
+    },
+    {
+      "Title": "A_PerEscalation",
+      "Value": 10
+    },
+    {
+      "Title": "A_Cap_Escalation",
+      "Value": 15
+    },
+    {
+      "Title": "A_PerComplaint",
+      "Value": 6
+    },
+    {
+      "Title": "A_Cap_Complaint",
+      "Value": 12
+    },
+    {
+      "Title": "A_PerOverdueRequest",
+      "Value": 4
+    },
+    {
+      "Title": "A_Cap_OverdueRequest",
+      "Value": 8
+    },
+    {
+      "Title": "A_Concern_Watch",
+      "Value": 5
+    },
+    {
+      "Title": "A_Concern_Concern",
+      "Value": 12
+    },
+    {
+      "Title": "A_Concern_Critical",
+      "Value": 25
+    },
+    {
+      "Title": "A_Renewal",
+      "Value": 5
+    },
+    {
+      "Title": "A_MIRP",
+      "Value": 3
+    },
+    {
+      "Title": "A_Pattern",
+      "Value": 5
+    },
+    {
+      "Title": "Parse_StoreSnippetChars",
+      "Value": 400
+    }
+  ],
+  "holidays": [
+    "2026-10-29",
+    "2027-01-01",
+    "2027-04-23",
+    "2027-05-01",
+    "2027-05-19",
+    "2027-07-15",
+    "2027-08-30",
+    "2027-10-29"
+  ],
+  "rules": {
+    "factors": [
+      [
+        "Severity",
+        "Severity & impact base",
+        "Sev 1 = 35, Sev A = 22, Sev B = 12, Sev C = 3",
+        35
+      ],
+      [
+        "Momentum",
+        "Stall / momentum",
+        "Microsoft idle vs stall threshold: >=0.5x = 8, >=1x = 18 (stalled), >=2x = 25. Customer silence >= threshold = 6, >=2x = 10. No engineer after 1 business day = 18. Blind spot +5.",
+        30
+      ],
+      [
+        "Age",
+        "Age vs target window",
+        ">=0.5x target = 5, >=1x = 15, >=2x = 20 (targets: Sev 1 3d, A 7d, B 14d, C 30d)",
+        20
+      ],
+      [
+        "SLA",
+        "SLA & commitments",
+        "No first response past SLA = 15, SLA at risk = 5, late first response = 5, next action overdue = 8, ETA missed = 8",
+        15
+      ],
+      [
+        "Voice",
+        "Customer voice",
+        "Frustrated = 8 / Angry = 15, open complaint = 8, 2+ chasers = 6, overdue request = 4",
+        20
+      ],
+      [
+        "Exposure",
+        "Exposure & churn",
+        "Exec visibility = 8, impact High = 4 / Critical = 8, 3+ owners = 5, reopened = 5, severity raised < 7d = 5, account concern 3/6, renewal <= 90d = 3",
+        15
+      ]
+    ],
+    "overrides": [
+      [
+        "R1",
+        "Hard Red",
+        "Sev 1 open or Critical Situation active"
+      ],
+      [
+        "R2",
+        "Hard Red",
+        "Sev A with no Microsoft update for >= 1 business day (Sev A stalled)"
+      ],
+      [
+        "R3",
+        "Hard Red",
+        "Sev 1/A/B still awaiting first response past SLA"
+      ],
+      [
+        "R4",
+        "Hard Red",
+        "Customer explicitly asked to escalate (open Escalation Request signal)"
+      ],
+      [
+        "R5",
+        "Hard Red",
+        "Customer sentiment Angry AND executive visibility"
+      ],
+      [
+        "Y1",
+        "Yellow floor",
+        "Any open Sev A"
+      ],
+      [
+        "Y2",
+        "Yellow floor",
+        "Open complaint on the case"
+      ],
+      [
+        "Y3",
+        "Yellow floor",
+        "Case is stalled (any stall type)"
+      ],
+      [
+        "Y4",
+        "Yellow floor",
+        "Open 30+ days"
+      ],
+      [
+        "Y5",
+        "Yellow floor",
+        "Critical Situation ended within the last 7 days"
+      ],
+      [
+        "Y6",
+        "Yellow floor",
+        "First-response SLA breached (any severity)"
+      ]
+    ],
+    "stall": [
+      [
+        "ST1",
+        "Microsoft-side",
+        "Ball with Microsoft and business days since the last Microsoft update >= threshold (Sev 1/A 1, B 3, C 5).",
+        "PB-05 nudge engineer -> L1 after 1 business day; Sev A -> PB-02 duty manager now."
+      ],
+      [
+        "ST2",
+        "Blocked (Product Group)",
+        "Status Waiting on Product Group and no Microsoft update >= threshold.",
+        "Ask for PG ETA + interim workaround; L1 if none within 1 business day."
+      ],
+      [
+        "ST3",
+        "Customer-side",
+        "Ball with customer/partner and no correspondence for >= 5 business days (Sev 1/A: 2).",
+        "PB-06 nudge customer; second nudge +3 business days; propose closure."
+      ],
+      [
+        "ST4",
+        "Process (no owner)",
+        "No engineer assigned 1+ business day after creation (blank 'Ownership accepted' notification).",
+        "PB-10 request assignment through the duty manager."
+      ],
+      [
+        "ST5",
+        "Commitment missed",
+        "Next Action Due or Resolution ETA in the past while the case is open.",
+        "Reset next action / ETA with the engineer; update the customer."
+      ],
+      [
+        "ST6",
+        "Blind spot (flag)",
+        "No case correspondence visible to the CSM after 1 business day - adds 5 points and a visibility action.",
+        "PB-13 check the case in the portal; ask to be CC'd on Sev A/B threads."
+      ]
+    ],
+    "triggers": [
+      [
+        "E1",
+        "Sev 1 / CritSit engaged",
+        "L3",
+        "Real-time",
+        "Join CritSit comms; executive update cadence 4h; readiness pack for exec questions."
+      ],
+      [
+        "E2",
+        "Sev A stalled on Microsoft side (>= 1 business day)",
+        "L2",
+        "Engine + hourly watch",
+        "Duty manager engagement; request update within 2h."
+      ],
+      [
+        "E3",
+        "No first response past SLA (Sev 1/A/B)",
+        "L2",
+        "Hourly SLA watch",
+        "24x7 Case Management / duty manager; inform customer proactively."
+      ],
+      [
+        "E4",
+        "Red for 2+ engine runs and score not improving",
+        "L1",
+        "Daily engine",
+        "Engineer's manager / TA: action plan and ETA."
+      ],
+      [
+        "E5",
+        "Customer explicitly requests escalation",
+        "L2",
+        "Ingestion (keywords / AI)",
+        "Escalation pack + manager approval same day."
+      ],
+      [
+        "E6",
+        "Customer executive visibility on a Red case",
+        "L4",
+        "Daily engine",
+        "Manager aligns Microsoft exec sponsor; exec-ready summary."
+      ],
+      [
+        "E7",
+        "Aged >= 2x target with no resolution ETA",
+        "L1",
+        "Daily engine",
+        "Request action plan + ETA; consider SME / PG engagement."
+      ],
+      [
+        "E8",
+        "3+ ownership changes or 2+ reopens",
+        "L1",
+        "Daily engine",
+        "Single accountable owner; handover summary; quality review."
+      ],
+      [
+        "E9",
+        "Account pattern: 3+ open cases in one product family within 14 days",
+        "L1 (account)",
+        "Daily engine",
+        "Account review; problem-management request; proactive session."
+      ],
+      [
+        "E10",
+        "Complaint about response time / handling / communication / resolution quality",
+        "L1",
+        "Signal triage",
+        "Support manager feedback; recovery plan; DSAT tracking."
+      ],
+      [
+        "E11",
+        "2+ customer follow-ups without a Microsoft reply",
+        "L1",
+        "Ingestion + engine",
+        "Nudge engineer; if no reply same day -> engineer's manager."
+      ]
+    ],
+    "playbooks": [
+      [
+        "PB-00",
+        "Monitor",
+        "Green or low-risk Yellow",
+        "Confirm next action and ETA exist; no customer contact needed today."
+      ],
+      [
+        "PB-01",
+        "Critical Situation (Sev 1 / CritSit)",
+        "E1",
+        "Join bridge or get CritSit manager contact -> set 4h executive update cadence -> prepare exec summary -> RCA request logged as Additional Request -> post-incident review within 5 business days of closure."
+      ],
+      [
+        "PB-02",
+        "Sev A without update",
+        "R2 / E2",
+        "Ping engineer now -> no reply in 1h: duty manager -> inform customer of actions -> log in Escalations (L2) -> review again at 12:00."
+      ],
+      [
+        "PB-03",
+        "First response overdue",
+        "R3 / E3 / Y6",
+        "Contact duty manager or 24x7 Case Management -> confirm engineer assignment -> proactive customer message -> track SLA breach in Review Log."
+      ],
+      [
+        "PB-04",
+        "Customer escalation request",
+        "R4 / E5",
+        "Acknowledge to customer within 2h -> Copilot builds escalation pack -> manager approval card -> submit at suggested level -> daily tracking until de-escalation criteria met."
+      ],
+      [
+        "PB-05",
+        "Microsoft-side stall",
+        "ST1 / ST2",
+        "Template N1 nudge to engineer (ask: status, next step, ETA) -> no reply in 1 business day: engineer's manager / TA (L1) -> still stalled after 2: escalation candidate."
+      ],
+      [
+        "PB-06",
+        "Customer-side stall",
+        "ST3",
+        "Template C1 reminder -> +3 business days second reminder with call offer -> propose closure / soft close with customer consent."
+      ],
+      [
+        "PB-07",
+        "Complaint",
+        "Y2 / E10",
+        "Acknowledge within 1 business day (template K1) -> classify category -> agree recovery plan with engineer's manager -> close the loop with the customer -> tag root cause."
+      ],
+      [
+        "PB-08",
+        "Additional request",
+        "Request signal",
+        "Qualify (in scope / contract / needs PG) -> assign owner and due date -> confirm expectations to customer -> deliver and record resolution."
+      ],
+      [
+        "PB-09",
+        "Aging without plan / missed commitment",
+        "E7 / ST5",
+        "Request written action plan + ETA from engineer's manager / TA -> consider SME or PG engagement -> update customer."
+      ],
+      [
+        "PB-10",
+        "Ownership issue",
+        "ST4 / E8",
+        "Ask duty manager for a single accountable owner -> request handover summary -> monitor for 2 business days."
+      ],
+      [
+        "PB-11",
+        "Account-level concern",
+        "Account Red / E9",
+        "Account review with manager -> action plan (technical, relationship, commercial) -> exec sponsor alignment -> weekly tracking until Green for 2 weeks."
+      ],
+      [
+        "PB-12",
+        "Closure & close-the-loop",
+        "Case closed",
+        "Confirm resolution with customer within 2 business days -> capture satisfaction -> RCA delivered if requested -> post-incident review for Sev 1/A or escalated cases."
+      ],
+      [
+        "PB-13",
+        "Blind spot",
+        "ST6",
+        "Check case status in the support portal -> ask engineer to CC you on customer updates -> set next action in the list."
+      ]
+    ]
+  }
+}

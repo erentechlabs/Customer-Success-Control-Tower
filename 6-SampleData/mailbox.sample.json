@@ -1,0 +1,549 @@
+{
+  "version": 1,
+  "sampleAsOf": "2026-10-09T12:00:00Z",
+  "generatedAt": "2026-10-09T12:00:00Z",
+  "me": {
+    "name": "Demo CSAM",
+    "email": "csam@example.com"
+  },
+  "settings": {
+    "staleCaseDays": 21,
+    "pollSeconds": 60,
+    "publishTimes": []
+  },
+  "accounts": [
+    {
+      "Title": "Contoso",
+      "Industry": "Retail",
+      "MIRPStatus": "Confirmed",
+      "MIRPConfirmedOn": "2026-09-01T09:00:00Z",
+      "MIRPConfirmedBy": "Demo Administrator",
+      "Source": "Account map",
+      "CSMConcern": "None",
+      "ContractType": "Unified Enterprise"
+    },
+    {
+      "Title": "Fabrikam",
+      "Industry": "Manufacturing",
+      "MIRPStatus": "Pending",
+      "Source": "Account map",
+      "CSMConcern": "None",
+      "ContractType": "Unified Enterprise"
+    },
+    {
+      "Title": "Woodgrove Bank",
+      "Industry": "Finance",
+      "MIRPStatus": "Confirmed",
+      "MIRPConfirmedOn": "2026-08-10T09:00:00Z",
+      "Source": "Account map",
+      "CSMConcern": "None",
+      "ContractType": "Unified Enterprise"
+    },
+    {
+      "Title": "Tailwind Traders",
+      "Industry": "Wholesale",
+      "MIRPStatus": "Confirmed",
+      "Source": "Account map",
+      "CSMConcern": "None",
+      "ContractType": "Unified Enterprise"
+    },
+    {
+      "Title": "Northwind",
+      "Industry": "Logistics",
+      "MIRPStatus": "Pending",
+      "Source": "Account map",
+      "CSMConcern": "None",
+      "ContractType": "Unified Enterprise"
+    },
+    {
+      "Title": "Adventure Works",
+      "Industry": "Travel",
+      "MIRPStatus": "Unknown",
+      "Source": "Account map",
+      "CSMConcern": "None",
+      "ContractType": "Unified Enterprise"
+    }
+  ],
+  "cases": {
+    "2610089999000001": {
+      "account": "Contoso",
+      "accountSource": "Fictional sample account"
+    },
+    "2610089999000002": {
+      "account": "Fabrikam",
+      "accountSource": "Fictional sample account"
+    },
+    "2610089999000003": {
+      "account": "Woodgrove Bank",
+      "accountSource": "Fictional sample account"
+    },
+    "2610089999000004": {
+      "account": "Tailwind Traders",
+      "accountSource": "Fictional sample account"
+    },
+    "2610089999000005": {
+      "account": "Northwind",
+      "accountSource": "Fictional sample account"
+    },
+    "2610089999000006": {
+      "account": "Adventure Works",
+      "accountSource": "Fictional sample account"
+    },
+    "2610089999000007": {
+      "account": "Contoso",
+      "accountSource": "Fictional sample account"
+    },
+    "2610089999000008": {
+      "account": "Fabrikam",
+      "accountSource": "Fictional sample account"
+    },
+    "2610089999000009": {
+      "account": "Woodgrove Bank",
+      "accountSource": "Fictional sample account"
+    },
+    "2610089999000010": {
+      "account": "Tailwind Traders",
+      "accountSource": "Fictional sample account"
+    },
+    "2610089999000011": {
+      "account": "Northwind",
+      "accountSource": "Fictional sample account"
+    },
+    "2610089999000012": {
+      "account": "Adventure Works",
+      "accountSource": "Fictional sample account"
+    }
+  },
+  "events": [
+    {
+      "caseId": "2610089999000012",
+      "t": "2026-08-01T06:00:00Z",
+      "kind": "created",
+      "role": "system",
+      "sev": "C",
+      "fields": {
+        "caseTitle": "Older case without a closure notice",
+        "areaPath": "Microsoft 365 / Collaboration",
+        "serviceName": "Microsoft 365"
+      }
+    },
+    {
+      "caseId": "2610089999000001",
+      "t": "2026-10-08T06:00:00Z",
+      "kind": "created",
+      "role": "system",
+      "sev": "B",
+      "fields": {
+        "caseTitle": "Mailbox migration waiting for an update",
+        "areaPath": "Microsoft 365 / Collaboration",
+        "serviceName": "Microsoft 365"
+      }
+    },
+    {
+      "caseId": "2610089999000002",
+      "t": "2026-10-08T06:00:00Z",
+      "kind": "created",
+      "role": "system",
+      "sev": "A",
+      "fields": {
+        "caseTitle": "Service restoration: first contact pending",
+        "areaPath": "Microsoft 365 / Collaboration",
+        "serviceName": "Microsoft 365"
+      }
+    },
+    {
+      "caseId": "2610089999000003",
+      "t": "2026-10-08T06:00:00Z",
+      "kind": "created",
+      "role": "system",
+      "sev": "B",
+      "fields": {
+        "caseTitle": "Directory synchronisation: owner not visible",
+        "areaPath": "Microsoft 365 / Collaboration",
+        "serviceName": "Microsoft 365"
+      }
+    },
+    {
+      "caseId": "2610089999000004",
+      "t": "2026-10-08T06:00:00Z",
+      "kind": "created",
+      "role": "system",
+      "sev": "B",
+      "fields": {
+        "caseTitle": "Calendar integration: engineering review",
+        "areaPath": "Microsoft 365 / Collaboration",
+        "serviceName": "Microsoft 365"
+      }
+    },
+    {
+      "caseId": "2610089999000005",
+      "t": "2026-10-08T06:00:00Z",
+      "kind": "created",
+      "role": "system",
+      "sev": "C",
+      "fields": {
+        "caseTitle": "Customer validation of a configuration change",
+        "areaPath": "Microsoft 365 / Collaboration",
+        "serviceName": "Microsoft 365"
+      }
+    },
+    {
+      "caseId": "2610089999000006",
+      "t": "2026-10-08T06:00:00Z",
+      "kind": "created",
+      "role": "system",
+      "sev": "B",
+      "fields": {
+        "caseTitle": "Reopened collaboration issue",
+        "areaPath": "Microsoft 365 / Collaboration",
+        "serviceName": "Microsoft 365"
+      }
+    },
+    {
+      "caseId": "2610089999000007",
+      "t": "2026-10-08T06:00:00Z",
+      "kind": "created",
+      "role": "system",
+      "sev": "C",
+      "fields": {
+        "caseTitle": "Mail routing configuration verified",
+        "areaPath": "Microsoft 365 / Collaboration",
+        "serviceName": "Microsoft 365"
+      }
+    },
+    {
+      "caseId": "2610089999000008",
+      "t": "2026-10-08T06:00:00Z",
+      "kind": "created",
+      "role": "system",
+      "sev": "C",
+      "fields": {
+        "caseTitle": "Access policy validation complete",
+        "areaPath": "Microsoft 365 / Collaboration",
+        "serviceName": "Microsoft 365"
+      }
+    },
+    {
+      "caseId": "2610089999000009",
+      "t": "2026-10-08T06:00:00Z",
+      "kind": "created",
+      "role": "system",
+      "sev": "C",
+      "fields": {
+        "caseTitle": "Meeting integration restored",
+        "areaPath": "Microsoft 365 / Collaboration",
+        "serviceName": "Microsoft 365"
+      }
+    },
+    {
+      "caseId": "2610089999000010",
+      "t": "2026-10-08T06:00:00Z",
+      "kind": "created",
+      "role": "system",
+      "sev": "C",
+      "fields": {
+        "caseTitle": "Reporting workflow archived",
+        "areaPath": "Microsoft 365 / Collaboration",
+        "serviceName": "Microsoft 365"
+      }
+    },
+    {
+      "caseId": "2610089999000011",
+      "t": "2026-10-08T06:00:00Z",
+      "kind": "created",
+      "role": "system",
+      "sev": "C",
+      "fields": {
+        "caseTitle": "Closure confirmation still pending",
+        "areaPath": "Microsoft 365 / Collaboration",
+        "serviceName": "Microsoft 365"
+      }
+    },
+    {
+      "caseId": "2610089999000001",
+      "kind": "ownership",
+      "t": "2026-10-08T06:15:00Z",
+      "role": "system",
+      "engineer": "Alex Morgan"
+    },
+    {
+      "caseId": "2610089999000002",
+      "kind": "ownership",
+      "t": "2026-10-08T06:15:00Z",
+      "role": "system",
+      "engineer": "Alex Morgan"
+    },
+    {
+      "caseId": "2610089999000004",
+      "kind": "ownership",
+      "t": "2026-10-08T06:15:00Z",
+      "role": "system",
+      "engineer": "Alex Morgan"
+    },
+    {
+      "caseId": "2610089999000005",
+      "kind": "ownership",
+      "t": "2026-10-08T06:15:00Z",
+      "role": "system",
+      "engineer": "Alex Morgan"
+    },
+    {
+      "caseId": "2610089999000006",
+      "kind": "ownership",
+      "t": "2026-10-08T06:15:00Z",
+      "role": "system",
+      "engineer": "Alex Morgan"
+    },
+    {
+      "caseId": "2610089999000007",
+      "kind": "ownership",
+      "t": "2026-10-08T06:15:00Z",
+      "role": "system",
+      "engineer": "Alex Morgan"
+    },
+    {
+      "caseId": "2610089999000008",
+      "kind": "ownership",
+      "t": "2026-10-08T06:15:00Z",
+      "role": "system",
+      "engineer": "Alex Morgan"
+    },
+    {
+      "caseId": "2610089999000009",
+      "kind": "ownership",
+      "t": "2026-10-08T06:15:00Z",
+      "role": "system",
+      "engineer": "Alex Morgan"
+    },
+    {
+      "caseId": "2610089999000010",
+      "kind": "ownership",
+      "t": "2026-10-08T06:15:00Z",
+      "role": "system",
+      "engineer": "Alex Morgan"
+    },
+    {
+      "caseId": "2610089999000011",
+      "kind": "ownership",
+      "t": "2026-10-08T06:15:00Z",
+      "role": "system",
+      "engineer": "Alex Morgan"
+    },
+    {
+      "caseId": "2610089999000004",
+      "kind": "ms_update",
+      "t": "2026-10-08T06:30:00Z",
+      "role": "ms",
+      "actor": "Alex Morgan",
+      "actorMail": "engineer@example.com",
+      "ball": "Product Group",
+      "preview": "Waiting for the product group; next update is pending."
+    },
+    {
+      "caseId": "2610089999000001",
+      "kind": "ms_update",
+      "t": "2026-10-08T07:00:00Z",
+      "role": "ms",
+      "actor": "Alex Morgan",
+      "actorMail": "engineer@example.com",
+      "ball": "Customer",
+      "preview": "Please share the sample migration logs."
+    },
+    {
+      "caseId": "2610089999000006",
+      "kind": "ms_update",
+      "t": "2026-10-08T07:00:00Z",
+      "role": "ms",
+      "actor": "Alex Morgan",
+      "actorMail": "engineer@example.com",
+      "ball": "Customer"
+    },
+    {
+      "caseId": "2610089999000007",
+      "kind": "ms_update",
+      "t": "2026-10-08T07:00:00Z",
+      "role": "ms",
+      "actor": "Alex Morgan",
+      "actorMail": "engineer@example.com",
+      "ball": "Customer",
+      "preview": "The sample configuration change passed validation."
+    },
+    {
+      "caseId": "2610089999000008",
+      "kind": "ms_update",
+      "t": "2026-10-08T07:00:00Z",
+      "role": "ms",
+      "actor": "Alex Morgan",
+      "actorMail": "engineer@example.com",
+      "ball": "Customer",
+      "preview": "The sample configuration change passed validation."
+    },
+    {
+      "caseId": "2610089999000009",
+      "kind": "ms_update",
+      "t": "2026-10-08T07:00:00Z",
+      "role": "ms",
+      "actor": "Alex Morgan",
+      "actorMail": "engineer@example.com",
+      "ball": "Customer",
+      "preview": "The sample configuration change passed validation."
+    },
+    {
+      "caseId": "2610089999000010",
+      "kind": "ms_update",
+      "t": "2026-10-08T07:00:00Z",
+      "role": "ms",
+      "actor": "Alex Morgan",
+      "actorMail": "engineer@example.com",
+      "ball": "Customer",
+      "preview": "The sample configuration change passed validation."
+    },
+    {
+      "caseId": "2610089999000011",
+      "kind": "ms_update",
+      "t": "2026-10-08T07:00:00Z",
+      "role": "ms",
+      "actor": "Alex Morgan",
+      "actorMail": "engineer@example.com",
+      "ball": "Customer"
+    },
+    {
+      "caseId": "2610089999000001",
+      "kind": "customer_update",
+      "t": "2026-10-08T08:00:00Z",
+      "role": "customer",
+      "actor": "Jamie Taylor",
+      "actorMail": "customer@example.org",
+      "preview": "The sample logs are ready. Could you share documentation and the next step?",
+      "signals": [
+        {
+          "type": "Additional Request",
+          "category": "Documentation",
+          "label": "Configuration documentation requested",
+          "phrase": "documentation",
+          "quote": "Could you share configuration documentation?"
+        }
+      ]
+    },
+    {
+      "caseId": "2610089999000006",
+      "kind": "closed",
+      "t": "2026-10-08T08:00:00Z",
+      "role": "system",
+      "resolution": "Validation complete"
+    },
+    {
+      "caseId": "2610089999000007",
+      "kind": "customer_update",
+      "t": "2026-10-08T08:00:00Z",
+      "role": "customer",
+      "actor": "Jamie Taylor",
+      "actorMail": "customer@example.org",
+      "closure": true,
+      "preview": "The sample test passed. Please close the case."
+    },
+    {
+      "caseId": "2610089999000008",
+      "kind": "customer_update",
+      "t": "2026-10-08T08:00:00Z",
+      "role": "customer",
+      "actor": "Jamie Taylor",
+      "actorMail": "customer@example.org",
+      "closure": true,
+      "preview": "The sample test passed. Please close the case."
+    },
+    {
+      "caseId": "2610089999000009",
+      "kind": "customer_update",
+      "t": "2026-10-08T08:00:00Z",
+      "role": "customer",
+      "actor": "Jamie Taylor",
+      "actorMail": "customer@example.org",
+      "closure": true,
+      "preview": "The sample test passed. Please close the case."
+    },
+    {
+      "caseId": "2610089999000010",
+      "kind": "customer_update",
+      "t": "2026-10-08T08:00:00Z",
+      "role": "customer",
+      "actor": "Jamie Taylor",
+      "actorMail": "customer@example.org",
+      "closure": true,
+      "preview": "The sample test passed. Please close the case."
+    },
+    {
+      "caseId": "2610089999000011",
+      "kind": "customer_update",
+      "t": "2026-10-08T08:00:00Z",
+      "role": "customer",
+      "actor": "Jamie Taylor",
+      "actorMail": "customer@example.org",
+      "closure": true,
+      "preview": "The sample issue is resolved; please close."
+    },
+    {
+      "caseId": "2610089999000007",
+      "kind": "closed",
+      "t": "2026-10-08T09:00:00Z",
+      "role": "system",
+      "resolution": "Customer confirmed successful validation"
+    },
+    {
+      "caseId": "2610089999000008",
+      "kind": "closed",
+      "t": "2026-10-08T09:00:00Z",
+      "role": "system",
+      "resolution": "Customer confirmed successful validation"
+    },
+    {
+      "caseId": "2610089999000009",
+      "kind": "closed",
+      "t": "2026-10-08T09:00:00Z",
+      "role": "system",
+      "resolution": "Customer confirmed successful validation"
+    },
+    {
+      "caseId": "2610089999000010",
+      "kind": "archived",
+      "t": "2026-10-08T09:00:00Z",
+      "role": "system",
+      "resolution": "Archived"
+    },
+    {
+      "caseId": "2610089999000006",
+      "kind": "reopened",
+      "t": "2026-10-09T06:00:00Z",
+      "role": "system"
+    },
+    {
+      "caseId": "2610089999000006",
+      "kind": "customer_update",
+      "t": "2026-10-09T07:00:00Z",
+      "role": "customer",
+      "actor": "Jamie Taylor",
+      "actorMail": "customer@example.org",
+      "sentiment": "Frustrated",
+      "preview": "The fictional test is still failing; please review the next action.",
+      "signals": [
+        {
+          "type": "Complaint",
+          "category": "Response time",
+          "label": "Update cadence concern",
+          "phrase": "still failing",
+          "quote": "Please review the next action."
+        }
+      ]
+    },
+    {
+      "caseId": "2610089999000005",
+      "kind": "ms_update",
+      "t": "2026-10-09T10:00:00Z",
+      "role": "ms",
+      "actor": "Alex Morgan",
+      "actorMail": "engineer@example.com",
+      "ball": "Customer",
+      "preview": "Please validate the sample configuration."
+    }
+  ]
+}

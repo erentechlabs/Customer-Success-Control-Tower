@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Customer Success Control Tower</title>
+<link rel="icon" href="@@FAVICON@@">
+<script>
+  (() => {
+    const param = new URLSearchParams(window.location.search).get("scoutTheme");
+    const theme =
+      param || (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+    document.documentElement.setAttribute("data-theme", theme);
+  })();
+</script>
+<style>
+@@STYLE@@
+</style>
+</head>
+<body>
+<div class="app" id="appRoot">
+  <header class="titlebar">
+    <div class="tb-left">
+      <button class="btn subtle icon" id="paneToggle" type="button" aria-label="Toggle navigation" title="Toggle navigation"></button>
+      <svg class="app-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v12H4zM8 21h8M12 17v4" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>
+      <span class="tb-title">Control Tower</span>
+      <span class="tb-sub" id="tbSub"></span>
+    </div>
+    <div class="asb" id="asb">
+      <input id="search" type="search" placeholder="Search cases or accounts" autocomplete="off" spellcheck="false" aria-label="Search cases, accounts and engineers" aria-controls="asbList" aria-expanded="false" aria-keyshortcuts="Control+k Meta+k">
+      <span class="asb-ico" id="asbIco"></span>
+    </div>
+    <div class="tb-right">
+      <button class="btn subtle tb-live" id="liveBtn" type="button" hidden></button>
+      <span class="tb-meta" id="asof"></span>
+      <button class="btn subtle icon" id="themeToggle" type="button"></button>
+    </div>
+  </header>
+  <div class="shell">
+    <nav class="nav" id="nav" aria-label="Pages"></nav>
+    <main class="content">
+      <div class="scroll" id="scroll" tabindex="0" aria-label="Page content">
+        <div class="ph" id="ph"></div>
+        <div class="banner" id="banner" role="status" aria-live="polite"></div>
+        <div class="page" id="app"></div>
+      </div>
+    </main>
+  </div>
+</div>
+<div class="flyout" id="asbList" role="listbox" hidden></div>
+<div class="smoke" id="scrim"></div>
+<aside class="sheet" id="drawer" role="dialog" aria-modal="true" aria-hidden="true" aria-label="Case details"></aside>
