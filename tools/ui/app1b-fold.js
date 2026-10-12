@@ -8,6 +8,17 @@
     ms_update: "Microsoft Update", customer_update: "Customer Update", account_team: "Account Team", notification: "Notification"
   };
   const isoOf = (ms) => (ms === null || ms === undefined ? null : new Date(ms).toISOString());
+  // Cases closed or reopened by hand: { caseId: { state: "closed" | "open", at: ISO time } }. Malformed entries are ignored.
+  function cleanManual(raw) {
+    const out = {};
+    if (raw && typeof raw === "object") {
+      Object.keys(raw).forEach((id) => {
+        const m = raw[id];
+        if (/^\d{16}$/.test(id) && m && (m.state === "closed" || m.state === "open") && !isNaN(Date.parse(m.at))) { out[id] = { state: m.state, at: m.at }; }
+      });
+    }
+    return out;
+  }
   // Ownership notices name the engineer without an address; take it from that person's own e-mails on the thread.
   // The support relay can shorten sender names, so a first name plus the other's initial also matches.
   const normName = (x) => String(x || "").normalize("NFD").replace(/[\u0300-\u036f.]/g, "").toLowerCase().replace(/\s+/g, " ").trim();
@@ -100,8 +111,14 @@
     return e.title || "Support notification";
   }
 
+  // What to store when a case is closed or reopened by hand: nothing when the official e-mail history already shows that state.
+  // A closure only inferred from customer agreement or inactivity can still be confirmed by hand.
+  function manualChoice(c, target, at) {
+    return (target === "closed" ? !!c.OfficialClosed : !c.AutoClosed) ? null : { state: target, at: at };
+  }
+
   // Replays the case e-mail events up to time T and produces the engine input plus the page data.
-  function foldAt(snap, T, carry, full) {
+  function foldAt(snap, T, carry, full, manual) {
     const staleMs = ((snap.settings && snap.settings.staleCaseDays) || 21) * DAY;
     const recentMs = (CTX.cfg.Recent_Days || 7) * DAY;
     const meta = snap.cases || {};
@@ -124,7 +141,7 @@
         engineer: "", engMail: "", owners: 0, firstEng: null, firstOwn: null, lastMs: null, lastCust: null, lastAct: null, lastTeam: null,
         chasers: 0, prevCust: null, side: "", closedAt: null, resolution: "", reopen: 0, sevAt: null, sevDir: null,
         crit: [], closure: null, consent: null, ball: null, exec: [], sent: [], sig: [], cust: {}, custMail: {}, msAll: {},
-        ownAt: null, ownReply: null, waitingSince: null, reopenedAt: null, closedKind: ""
+        ownAt: null, ownReply: null, waitingSince: null, reopenedAt: null, closedKind: "", lifeAt: null
       };
       evs.forEach((e) => {
         const t = Date.parse(e.t), f = e.fields || {};
@@ -150,8 +167,8 @@
           case "severity":
             if (e.sevTo) { s.sevDir = (SEVRANK[e.sevTo] || 0) > (SEVRANK[e.sevFrom || s.sev] || 0) ? "Raised" : "Lowered"; s.sev = e.sevTo; s.sevAt = t; }
             break;
-          case "reopened": s.reopen++; s.closedAt = null; s.consent = null; s.closure = null; s.reopenedAt = t; s.waitingSince = null; break;
-          case "closed": case "archived": s.closedAt = t; s.closedKind = e.kind; s.resolution = e.resolution || "Closed"; s.waitingSince = null; break;
+          case "reopened": s.reopen++; s.closedAt = null; s.consent = null; s.closure = null; s.reopenedAt = t; s.waitingSince = null; s.lifeAt = t; break;
+          case "closed": case "archived": s.closedAt = t; s.closedKind = e.kind; s.resolution = e.resolution || "Closed"; s.waitingSince = null; s.lifeAt = t; break;
           case "critsit_start": if (!lastCrit || lastCrit.end !== null) { s.crit.push({ start: t, end: null }); } break;
           case "critsit_end": if (lastCrit && lastCrit.end === null) { lastCrit.end = t; } else if (!lastCrit) { s.crit.push({ start: t, end: t }); } break;
           case "ms_update":
@@ -199,26 +216,50 @@
       const slaMeasurable = createdKnown && !!s.sev;
       if (!slaMeasurable) { fr = createdMs; }
       const voiceAfter = (t0) => s.sig.some((g) => g.t > t0 && g.x.type !== "Additional Request");
-      const resolvedAt = s.closedAt === null && s.consent !== null && !voiceAfter(s.consent) ? s.consent : null;
-      const staleAt = s.closedAt === null && resolvedAt === null && T - s.lastAct > staleMs ? s.lastAct : null;
-      const endAt = s.closedAt !== null ? s.closedAt : resolvedAt !== null ? resolvedAt : staleAt;
+      // The closure the e-mail history shows: an official notice, the customer's agreement, or silence.
+      const infer = (consentAt, lastActAt) => {
+        const resolved = s.closedAt === null && consentAt !== null && !voiceAfter(consentAt) ? consentAt : null;
+        const stale = s.closedAt === null && resolved === null && T - lastActAt > staleMs ? lastActAt : null;
+        return { resolved: resolved, stale: stale, lastAct: lastActAt, end: s.closedAt !== null ? s.closedAt : resolved !== null ? resolved : stale };
+      };
+      const mailbox = infer(s.consent, s.lastAct);
       const recentSent = s.sent.filter((p) => T - p[0] <= recentMs).map((p) => p[1]);
       const sentiment = recentSent.indexOf("Angry") >= 0 ? "Angry" : recentSent.indexOf("Frustrated") >= 0 ? "Frustrated" : "Neutral";
 
-      if (endAt !== null) {
-        closed.push({
+      // A manual close or reopen holds until an official closure or reopen notice arrives after it.
+      const mo = manual && manual[id], moAt = mo ? Date.parse(mo.at) : NaN;
+      const choice = mo && (mo.state === "closed" || mo.state === "open") && !isNaN(moAt) && (s.lifeAt === null || moAt > s.lifeAt) ? mo.state : null;
+      // Reopening a closure that was only inferred holds for what had happened by then: a later customer agreement,
+      // or silence counted from the reopening, closes the case again.
+      const shown = choice !== "open" ? mailbox : s.closedAt !== null ? { resolved: null, stale: null, lastAct: s.lastAct, end: null }
+        : infer(s.consent !== null && s.consent > moAt ? s.consent : null, Math.max(s.lastAct, moAt));
+      const autoClosed = mailbox.end !== null;
+      const override = choice === "closed" ? "closed" : choice === "open" && autoClosed && shown.end === null ? "open" : null;
+      const endEff = choice === "closed" ? moAt : shown.end;
+      if (full && choice) {
+        events.push({ CaseId: id, EventTime: isoOf(moAt), EventType: "Status change", Actor: (snap.me && snap.me.name) || snap.publishedBy || "Dashboard owner",
+          Detail: choice === "closed" ? "Marked closed in Control Tower; no Microsoft closure notice" : "Moved to open cases in Control Tower", Link: null });
+      }
+
+      if (choice === "closed" || shown.end !== null) {
+        const entry = {
           CaseId: id, Account: account, Title: title, SupportAreaPath: s.area, ProductFamily: fam, Severity: sevLabel || "Sev not set",
-          CreatedOn: isoOf(createdMs), ClosedOn: isoOf(endAt), Status: s.closedAt !== null ? "Closed" : resolvedAt !== null ? "Resolved" : "Inactive",
-          Resolution: s.closedAt !== null ? s.resolution : resolvedAt !== null ? "Customer agreed to close" : "No activity for " + Math.round((T - s.lastAct) / DAY) + " days (closure inferred)",
+          CreatedOn: isoOf(createdMs), ClosedOn: isoOf(shown.end), Status: s.closedAt !== null ? "Closed" : shown.resolved !== null ? "Resolved" : "Inactive",
+          Resolution: s.closedAt !== null ? s.resolution : shown.resolved !== null ? "Customer agreed to close" : "No activity for " + Math.round((T - shown.lastAct) / DAY) + " days (closure inferred)",
           CustomerContacts: contacts, ContactMails: contactMails, EngineerMail: engineerMail, Engineer: engName,
-          ClosureInferredOn: staleAt !== null && endAt === staleAt ? isoOf(staleAt + staleMs) : null,
-          ClosureKind: s.closedAt !== null ? s.closedKind : resolvedAt !== null ? "consent" : "inactivity",
+          ClosureInferredOn: shown.stale !== null && shown.end === shown.stale ? isoOf(shown.stale + staleMs) : null,
+          ClosureKind: s.closedAt !== null ? s.closedKind : shown.resolved !== null ? "consent" : "inactivity",
           ServiceName: s.service, CaseLink: s.link, LastMailLink: s.mail, EngineerWrote: engineerWrote,
           SeverityKnown: !!s.sev, CreatedEstimated: !createdKnown, AccountSource: meta[id] ? meta[id].accountSource : "",
           FirstOwnershipOn: isoOf(s.firstOwn), FirstEngineerReplyOn: isoOf(s.firstEng),
           LastMicrosoftUpdate: isoOf(s.lastMs), LastCustomerUpdate: isoOf(s.lastCust), LastActivity: isoOf(s.lastAct),
-          OwnershipChanges: s.owners, ReopenCount: s.reopen
-        });
+          OwnershipChanges: s.owners, ReopenCount: s.reopen, AutoClosed: autoClosed, OfficialClosed: s.closedAt !== null, ManualState: null
+        };
+        if (choice === "closed") {
+          Object.assign(entry, { Status: "Closed", ClosedOn: isoOf(moAt), ClosureInferredOn: null, ClosureKind: "manual",
+            Resolution: "Closed manually, no Microsoft closure notice yet", ManualState: "closed" });
+        }
+        closed.push(entry);
       } else {
         const status = s.closure !== null && (s.lastCust === null || s.lastCust < s.closure) ? "Waiting on Customer"
           : s.firstEng === null && s.firstOwn === null && !s.engineer ? "New" : "In Progress";
@@ -247,7 +288,8 @@
             SeverityKnown: !!s.sev, CreatedEstimated: !createdKnown, SLAMeasurable: slaMeasurable, AccountSource: meta[id] ? meta[id].accountSource : "",
             CustomerContacts: contacts, ContactMails: contactMails, EngineerMail: engineerMail, EngineerWrote: engineerWrote,
             CurrentOwnershipOn: isoOf(s.ownAt), LastAssignedEngineerReply: isoOf(s.ownReply),
-            CustomerWaitingSince: isoOf(s.waitingSince), LastReopenedOn: isoOf(s.reopenedAt), FollowUpBall: ball
+            CustomerWaitingSince: isoOf(s.waitingSince), LastReopenedOn: isoOf(s.reopenedAt), FollowUpBall: ball,
+            AutoClosed: autoClosed, OfficialClosed: s.closedAt !== null, ManualState: override
           }));
         }
       }
@@ -258,7 +300,7 @@
       keys.forEach((k, i) => {
         const g = groups[k], t0 = g.first.t, type = g.first.x.type, x = g.last.x;
         const ack = (s.lastMs !== null && s.lastMs > t0) || (s.lastTeam !== null && s.lastTeam > t0);
-        const done = (endAt !== null && endAt >= t0) || T - Math.max(g.last.t, s.lastAct) > 14 * DAY;
+        const done = (endEff !== null && endEff >= t0) || T - Math.max(g.last.t, s.lastAct) > 14 * DAY;
         const due = type === "Complaint" ? bizAdd(t0, 1) : type === "Escalation Request" ? localDate(csctLocalDay(t0, CTX.tz)) : bizAdd(t0, 3);
         signals.push({
           Id: "SIG-" + id.slice(-6) + "-" + (i + 1), SignalType: type, Account: account, CaseId: id, Title: x.label + " - " + title,
@@ -272,7 +314,7 @@
 
       // CritSit episodes are escalations raised by Microsoft Support (L3); readiness does not apply.
       s.crit.forEach((c, i) => {
-        const end = c.end !== null ? c.end : endAt;
+        const end = c.end !== null ? c.end : endEff;
         escalations.push({
           Id: "CRIT-" + id.slice(-6) + (s.crit.length > 1 ? "-" + (i + 1) : ""), CaseId: id, Account: account, Title: title,
           TriggerRules: "E1", Level: "L3 - Critical Situation Management", Status: end !== null ? "Closed" : "Active",
@@ -299,23 +341,28 @@
   }
 
   // Scores the last 21 business days at 18:00 and carries each day's scores into the next run, then scores now.
-  function runLive(snap, nowMs) {
-    const today = csctLocalDay(nowMs, CTX.tz), days = [];
-    let d = today;
-    while (days.length < 21) { d--; if (csctIsBizDay(d, CTX)) { days.unshift(d); } }
+  // The 21 earlier days depend only on the e-mail history, so they are scored once per snapshot and day, not on every change of the final fold.
+  let HISTORY = { snap: null, today: null, carry: null, trend: null };
+  function runLive(snap, nowMs, manual) {
+    const today = csctLocalDay(nowMs, CTX.tz);
     const point = (day, out) => { const dt = new Date(day * DAY); return { date: localDate(day), label: dt.getUTCDate() + " " + MON[dt.getUTCMonth()], red: out.summary.red, yellow: out.summary.yellow, green: out.summary.green, stalled: out.summary.stalled, open: out.summary.openCases }; };
-    let carry = { cases: {}, accounts: {} };
-    const trend = [];
-    days.forEach((day) => {
-      const out = csctRunEngine(foldAt(snap, day * DAY - CTX.tz * HOUR + 18 * HOUR, carry, false).input);
-      carry = { cases: {}, accounts: {} };
-      out.cases.forEach((c) => { carry.cases[c.CaseId] = { score: c.RiskScore, red: c.RedSince }; });
-      out.accounts.forEach((a) => { carry.accounts[a.Title] = a.AccountRiskScore; });
-      trend.push(point(day, out));
-    });
-    const f = foldAt(snap, nowMs, carry, true);
-    trend.push(point(today, csctRunEngine(f.input)));
-    f.trend = trend;
+    if (HISTORY.snap !== snap || HISTORY.today !== today) {
+      const days = [];
+      let d = today;
+      while (days.length < 21) { d--; if (csctIsBizDay(d, CTX)) { days.unshift(d); } }
+      let carry = { cases: {}, accounts: {} };
+      const trend = [];
+      days.forEach((day) => {
+        const out = csctRunEngine(foldAt(snap, day * DAY - CTX.tz * HOUR + 18 * HOUR, carry, false).input);
+        carry = { cases: {}, accounts: {} };
+        out.cases.forEach((c) => { carry.cases[c.CaseId] = { score: c.RiskScore, red: c.RedSince }; });
+        out.accounts.forEach((a) => { carry.accounts[a.Title] = a.AccountRiskScore; });
+        trend.push(point(day, out));
+      });
+      HISTORY = { snap: snap, today: today, carry: carry, trend: trend };
+    }
+    const f = foldAt(snap, nowMs, HISTORY.carry, true, manual);
+    f.trend = HISTORY.trend.concat([point(today, csctRunEngine(f.input))]);
     f.publishSlots = pubSlots(snap.settings && snap.settings.publishTimes);
     return f;
   }

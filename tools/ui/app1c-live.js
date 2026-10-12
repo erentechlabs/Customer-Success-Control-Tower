@@ -15,10 +15,13 @@
       if (!response.ok) { throw new Error(data.error || "HTTP " + response.status); }
       AT.preferences = data; AT.ready = true; AT.error = "";
     } catch (err) { AT.ready = false; AT.error = err.message || String(err); }
+    finally { AT.loaded = true; }
   }
-  async function attentionSave(update, notice) {
-    if (!AT.ready || AT.busy) { return; }
+  async function attentionSave(update, notice, onDone) {
+    if (!AT.ready || AT.busy) { return false; }
     AT.busy = true; AT.notice = ""; AT.error = "";
+    const before = JSON.stringify(manualStates());
+    let saved = false;
     try {
       const response = await fetch("/api/attention", { method: "POST",
         headers: { "Content-Type": "application/json", "X-CSCT": "attention" },
@@ -29,14 +32,18 @@
         throw new Error(data.error || "Preferences changed in another tab; try again.");
       }
       if (!response.ok) { throw new Error(data.error || "HTTP " + response.status); }
-      AT.preferences = data; AT.notice = notice;
+      AT.preferences = data; AT.notice = notice; saved = true;
     } catch (err) { AT.error = err.message || String(err); }
     finally { AT.busy = false; }
+    // Closing or reopening a case moves it between lists, so the e-mail history is folded again.
+    if (LV.snap && JSON.stringify(manualStates()) !== before) { ingest(runLive(LV.snap, Date.now(), manualStates())); }
+    if (onDone) { onDone(saved); }
     render(false);
     if (drawer.classList.contains("on") && drawer.dataset.attentionCase) {
       if (drawer.dataset.view === "followup") { openFollowUp(drawer.dataset.attentionCase); }
       else { openCase(drawer.dataset.attentionCase); }
     }
+    return saved;
   }
   const RING = '<svg class="pring" viewBox="0 0 32 32" aria-hidden="true"><circle cx="16" cy="16" r="13" stroke-dasharray="58 100"/></svg>';
   const stateBox = (icon, title, text, cmds, phase, cls) => '<div class="state' + (cls ? " " + cls : "") + '">' + icon + "<h2>" + H(title) + "</h2><p>" + H(text) + "</p>" +
@@ -48,8 +55,8 @@
     scroller.style.setProperty("--ph-h", ph.offsetHeight + "px");
   }
   function liveApply() {
-    if (!LV.snap) { return; }
-    ingest(runLive(LV.snap, Date.now()));
+    if (!LV.snap || !AT.loaded) { return; }
+    ingest(runLive(LV.snap, Date.now(), manualStates()));
     if (AT.busy || editingPage()) { renderNav(); return; }
     if (LV.booted && state.tab === "model") { renderNav(); return; }
     render(false);
@@ -86,6 +93,7 @@
     LV.timer = setTimeout(livePoll, next);
   }
   function liveAction(kind) {
+    if (kind === "attention") { attentionLoad().then(() => { liveApply(); liveStatus(); }); return; }
     if (kind === "sync" && !LV.err) {
       LV.manualAt = Date.now(); LV.manualUntil = LV.manualAt + 45000;
       liveStatus();
@@ -116,6 +124,7 @@
     if (LV.snap && LV.err) { bar = infoBar("critical", "dismiss_circle_filled", "Live connector not running", "Showing data synced at " + since + ". Start it again with Start-ControlTower.cmd, then select Retry.", "retry"); }
     else if (LV.snap && sy.state === "error") { bar = infoBar("caution", "warning_filled", "Could not refresh from Outlook", (sy.error || "Unknown error") + ". Showing data synced at " + since + ".", "sync"); }
     else if (LV.snap && stale) { bar = infoBar("caution", "warning_filled", "Data may be out of date", "The last successful sync was at " + since + ".", "sync"); }
+    else if (LV.snap && !AT.ready && AT.error) { bar = infoBar("caution", "warning_filled", "Saved case choices unavailable", AT.error + ". Cases you closed or reopened by hand are not applied until this loads.", "attention"); }
     if (bar !== LV.bar) { LV.bar = bar; $("banner").innerHTML = bar; }
   }
   function liveConnect() {
@@ -149,12 +158,12 @@
     $("liveBtn").addEventListener("click", () => liveAction("sync"));
     if (!onLocalhost()) { liveConnect(); return; }
     liveLoading(); liveStatus(); livePoll();
-    attentionLoad().then(() => { if (OUT) { render(false); } });
+    attentionLoad().then(() => { liveApply(); liveStatus(); });
     setInterval(() => { if (LV.snap && !document.hidden) { liveApply(); liveStatus(); } }, 60000);
     document.addEventListener("visibilitychange", () => { if (!document.hidden) { if (LV.snap) { liveApply(); } livePoll(); } });
     setInterval(() => {
       if (!document.hidden && !AT.busy && !editingPage()) {
-        attentionLoad().then(() => { if (OUT) { render(false); } });
+        attentionLoad().then(() => { liveApply(); liveStatus(); });
       }
     }, 60000);
   }

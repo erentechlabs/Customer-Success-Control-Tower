@@ -60,7 +60,7 @@
       escs.map((e) => li(ico("arrow_circle_up_regular", "tone-attention"), H(e.Title), caseNo(e.CaseId) + DOT + H(e.Level.split(" - ")[0]) + " escalation" + DOT + H(sc(e.Status)), { caseId: hasCase(e.CaseId) ? e.CaseId : null })).join("") + "</div>" : empty("No signals or escalations.");
     const right = '<div class="stack">' + head +
       card("Open cases", cases.length + " open" + DOT + "select a case for details", cases.length ? queueTable(cases, true, true) : empty("No open cases.")) +
-      card("Case history", confirmedClosed + " confirmed closures in 30 days" + DOT + "pending and inferred records are labelled separately",
+      card("Case history", confirmedClosed + " closed in 30 days" + DOT + "pending and inferred records are labelled separately",
         closed.length ? closedTable(closed, true) : empty("No recent case history."),
         { cmd: '<button class="btn link" type="button" data-history-account="' + H(a.Title) + '">All history</button>' }) +
       disclosure("account-actions-" + a.Title, "Recommended actions", act, actions.length + " items") +
@@ -183,14 +183,14 @@
       '<div class="form hist">' + fld("Previous score (yesterday)", num("prev", 0, 100)) + '<div class="field"><span>Yesterday</span>' + cb("redY", "Was Red yesterday") + "</div></div>";
     const tbl = (rows, heads) => '<div class="tw"><table class="tbl rules"><thead><tr>' + heads.map((x) => "<th>" + x + "</th>").join("") + "</tr></thead><tbody>" + rows.map((r) => "<tr>" + r.map((x) => "<td>" + H(x) + "</td>").join("") + "</tr>").join("") + "</tbody></table></div>";
     const simulator = '<div class="row r21">' + card("Risk simulator", "Try a scenario without changing real cases", form) + '<div class="card simres" id="simres">' + simResult() + "</div></div>";
-    const rules =
+    const rules = 
       '<div class="row r11">' + card("Score factors (0 to 100)", "Green below 30, Yellow from 30, Red from 60; " + (REAL ? "weights are part of the engine settings" : "all weights live in CSCT Config"), tbl(RULES.factors.map((f) => [f[1], f[2], String(f[3])]), ["Factor", "Points", "Cap"])) +
       card("Overrides and floors", "Hard rules that beat the score", tbl(RULES.overrides, ["Rule", "Effect", "Condition"])) + "</div>" +
       '<div class="row r11">' + card("Stalled case detection", "Business days, Europe/Istanbul calendar with holidays", tbl(RULES.stall.map((r) => [r[0] + " " + r[1], r[2], r[3]]), ["Rule", "Condition", "Action"])) +
       card("Escalation triggers", "Fired triggers create an escalation candidate", tbl(RULES.triggers.map((r) => [r[0], r[1], r[2]]), ["ID", "Condition", "Level"])) + "</div>" +
       '<div class="row">' + card("Playbooks", "Recommended workflow attached to every case", tbl(RULES.playbooks.map((r) => [r[0] + " " + r[1], r[2], r[3]]), ["Playbook", "When", "Steps"])) + "</div>";
     const about = "<p>Cases come from support notifications and case e-mail threads in your Outlook. People, last replies and timelines reflect only the messages you receive. Status and customer signals are inferred from those messages; confirm in the case record before acting.</p>" +
-      "<p>Closed means a support closure/archive notice exists. Customer agreement and inactivity are not confirmed closures. MIRP comes from Engage Center. Open cases alone are scored for current risk.</p>" +
+      "<p>Closed means a support closure/archive notice exists, or the case was closed by hand (Closed manually). Customer agreement and inactivity are not confirmed closures. MIRP comes from Engage Center. Open cases alone are scored for current risk.</p>" +
       "<p>The live connector checks mail every minute while this PC is on. The shared copy has a separate publication schedule. Nothing in the dashboard sends e-mail, Teams messages or escalations automatically.</p>";
     return { sub: "Preferences, data sources and scoring rules. Advanced tools stay out of the daily flow.",
       body: (MODE !== "snapshot" ? '<div class="row">' + attentionBanner() + disclosure("followup-policy", "Follow-up thresholds", attentionSettings(),
@@ -250,7 +250,8 @@
     drawer.classList.add("on"); scrim.classList.add("on"); drawer.setAttribute("aria-hidden", "false");
     root.inert = true;
     $("sheetBody").scrollTop = 0;
-    const first = drawer.querySelector(".sh-f .btn") || drawer.querySelector("[data-close]"); if (first) { first.focus({ preventScroll: true }); }
+    // Never start on a status command, so a stray Enter cannot close or reopen a case.
+    const first = drawer.querySelector(".sh-f .btn:not([data-case-state])") || drawer.querySelector("[data-close]"); if (first) { first.focus({ preventScroll: true }); }
   }
   function openCase(id) {
     const c = caseOut[id];
@@ -289,7 +290,10 @@
       fact("Next action", H(ci.NextAction || "Not set")) + fact(live ? "Severity" : "Next action due", live ? sevText : fmt(ci.NextActionDue, false)) + "</div>";
     const essential = '<div class="facts">' + fact("Status", H(sc(c.Status))) + fact("Next step", H(ci.NextAction || c.RecommendedAction)) +
       fact("Engineer", people.engineer) + fact("Last update", fmt(ci.LastMicrosoftUpdate || ci.LastActivity)) + "</div>";
-    let b = '<div class="sh-sec">' + notice + essential + '</div><div class="sh-sec">' +
+    const manualNote = ci.ManualState === "open" ? '<div class="ib" style="margin-bottom:16px">' + ico("info_filled") +
+      "<div><b>Opened manually</b>" + (ci.OfficialClosed ? "Microsoft's last notification closed this case. " : "The e-mail history had closed this case without a closure notification. ") +
+      "It was moved back to open cases here; a closure or reopen notification that arrives later takes over.</div></div>" : "";
+    let b = '<div class="sh-sec">' + withFlash(id, manualNote) + notice + essential + '</div><div class="sh-sec">' +
       disclosure("case-facts-" + id, "Case information", facts, "Contacts, dates and service") + "</div>";
     if (MODE !== "snapshot") {
       const followup = attentionModel().rows.find((r) => r.caseId === id);
@@ -309,7 +313,7 @@
     b += caseSignalsSection(id) + caseTimelineSection(id);
     b += '<div class="sh-sec">' + disclosure("case-prompts-" + id, "Copilot prompts", '<pre class="code">Summarize TrackingID#' + H(id) + " from my email in the last 14 days: timeline, what Microsoft tried, open customer asks, and sentiment.\n\nDraft a proactive customer update for case " + H(id) + " (" + H(c.Account) + ") in the customer's language: status, next step, owner and ETA. Keep it under 120 words.</pre>") + "</div>";
     const foot = (c.EscalationTriggers && !esc ? '<button class="btn accent" type="button" data-pack="' + H(id) + '">' + ico("arrow_circle_up_regular") + "<span>Build escalation pack</span></button>" : "") +
-      caseSourceButton(ci.CaseLink, "Open case record") + caseSourceButton(ci.LastMailLink, "Open latest e-mail") + '<button class="btn" type="button" data-close="1">Close</button>';
+      caseSourceButton(ci.CaseLink, "Open case record") + caseSourceButton(ci.LastMailLink, "Open latest e-mail") + caseStateButton(id, "closed") + '<button class="btn" type="button" data-close="1">Close</button>';
     showSheet("Case " + id, head, b, foot);
   }
   function openPack(id) {
@@ -374,7 +378,6 @@
     scroller.scrollTop = atBottom ? scroller.scrollHeight - scroller.clientHeight : pageTop;
   }
   function go(tab) {
-     if (tab === "attention" && MODE === "snapshot") { return; }
     const changed = state.tab !== tab;
     state.tab = tab; closeDrawer(); hideSug();
     render(changed); scroller.scrollTop = 0;
@@ -516,10 +519,10 @@
   $("asof").hidden = MODE === "live";
   setThemeIcon(); applyPane();
   const hashTab = (location.hash || "").replace("#", "");
-  if (RENDER[hashTab] && (hashTab !== "attention" || MODE !== "snapshot")) { state.tab = hashTab; }
+  if (RENDER[hashTab]) { state.tab = hashTab; }
   if (DEMO) {
     AT.ready = true;
-    ingest(runLive(DEMO, Date.parse(DEMO.sampleAsOf)));
+    ingest(runLive(DEMO, Date.parse(DEMO.sampleAsOf), manualStates()));
     window.csctFindings = findings;
     $("asof").textContent = "As of " + fmtT(D.input.asOf);
     $("asof").title = "Engine run " + fmtT(D.input.asOf) + " (Europe/Istanbul)";

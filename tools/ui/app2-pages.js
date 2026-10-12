@@ -84,13 +84,15 @@
   // ---- Page: Control tower ----
   function pageTower() {
     const nAcc = OUT.accounts.length, confirmed = X.closed.filter((c) => c.Status === "Closed").length;
+    const manualClosed = X.closed.filter((c) => c.ClosureKind === "manual").length;
     const followups = MODE !== "snapshot" && AT.ready ? attentionModel().active : [];
     const kp = [
       { icon: "clipboard_task_regular", tone: "neutral", label: "Open cases", value: S.openCases, sub: S.green + " on track", go: "queue", filter: "all" },
       { icon: "clock_regular", tone: "caution", label: MODE !== "snapshot" ? "Follow-up" : "Needs attention",
         value: MODE !== "snapshot" ? AT.ready ? followups.length : "&mdash;" : S.red + S.yellow,
         sub: MODE !== "snapshot" ? "Waiting for an update" : "At risk or on watch", go: MODE !== "snapshot" ? "attention" : "queue" },
-      { icon: "checkmark_circle_regular", tone: "success", label: "Closed cases", value: confirmed, sub: "Confirmed in mailbox", go: "closed" },
+      { icon: "checkmark_circle_regular", tone: "success", label: "Closed cases", value: confirmed,
+        sub: manualClosed ? (confirmed - manualClosed) + " confirmed" + DOT + manualClosed + " manual" : "Confirmed in mailbox", go: "closed" },
       { icon: "building_multiple_regular", tone: "neutral", label: "Accounts", value: nAcc, sub: openAccounts() + " with open cases", go: "acct" }
     ];
     let h = '<div class="stats overview-stats">' + kp.map(stat).join("") + "</div>";
@@ -115,14 +117,14 @@
     ch += more(newCases, 3, "new cases");
     newSig.slice(0, 3).forEach((s) => { ch += li(sigIco(s.SignalType), H(s.Account) + DOT + H(s.Title), [caseNo(s.CaseId), "New " + H(s.SignalType.toLowerCase()), fromWho(s.CustomerContact, s.CustomerContactMail)].filter(Boolean).join(DOT), { quote: s.Verbatim && s.Verbatim.length > 120 ? s.Verbatim.slice(0, 117) + "..." : s.Verbatim }); });
     ch += more(newSig, 3, "new signals in Customer voice");
-    closed.forEach((c) => { ch += li(historyIcon(c), H(c.Account) + DOT + H(c.Title), caseNo(c.CaseId) + DOT + H(historyLabel(c)) + DOT + H(c.Resolution), { caseId: c.CaseId }); });
+    closed.forEach((c) => { ch += li(historyIcon(c), H(c.Account) + DOT + H(c.Title), caseNo(c.CaseId) + DOT + H(historyLabel(c)) + (c.ClosureKind === "manual" ? "" : DOT + H(c.Resolution)), { caseId: c.CaseId }); });
     ch += "</div>";
     if (ch === '<div class="lv"></div>') { ch = empty("No changes in the last 24 hours."); }
     const accountBody = accounts.length ? '<div class="data-list">' + accounts.slice(0, 5).join("") + "</div>" +
       (accounts.length > 5 ? disclosure("more-account-health", "More accounts", '<div class="data-list">' + accounts.slice(5).join("") + "</div>", (accounts.length - 5) + " accounts") : "") : empty("No accounts need attention.");
     h += '<div class="row r11">' + card("Account health", "", accountBody,
       { cmd: '<button class="btn link" type="button" data-goto="acct">All accounts</button>' }) +
-      card("Recent activity", "New cases, customer signals and confirmed closures", ch) + "</div>";
+      card("Recent activity", "New cases, customer signals and closures", ch) + "</div>";
     const chart = '<div class="row r21 chart-row">' + card("Risk trend", TREND.length + " business days",
       '<div class="chart" id="trendChart" role="img" aria-label="Case risk trend"></div><div class="legend"><span class="red">At risk</span><span class="yellow">Watch</span><span class="stalled">Stalled</span></div>') +
       card("Risk distribution", "", '<div class="distribution">' + donut() + "</div>") + "</div>";

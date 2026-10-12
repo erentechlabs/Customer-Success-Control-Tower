@@ -348,6 +348,8 @@ The copy contains:
 - customer names, case titles and numbers;
 - engineer and contact names;
 - risk scores and recommended actions;
+- a read-only Attention center that uses the default targets (importance, review and snooze choices are not included);
+- the state and time of cases closed or reopened by hand;
 - e-mail addresses, only if `includeContactEmails` is `true`.
 
 It never contains e-mail text or mailbox links. Treat it as confidential and share it only inside Microsoft.
@@ -447,7 +449,8 @@ Folder F = <CSCT>\7-LiveConnector.
 | Connector runs | `Invoke-RestMethod http://127.0.0.1:<PORT>/api/ping` reports `state: ok`. |
 | Cases are mapped | The Step 5 listing shows `in map` on every line. |
 | Follow-up preferences | `Invoke-RestMethod http://127.0.0.1:<PORT>/api/attention` returns `revision`, `rules` and `cases`. Attention center lists waits; the threshold form is in Settings & rules. |
-| Closed cases | Cases > Closed opens recorded history. Closure pending and Inactive (inferred) are not counted as confirmed closures. |
+| Closed cases | Cases > Closed opens recorded history. Closure pending and Inactive (inferred) are not counted as confirmed closures until you confirm them by hand. |
+| Close by hand | In a case detail, **Mark as closed** moves the case to Cases > Closed as *Closed manually*; **Move to open cases** reverses it. |
 | Starts with Windows | The Startup shortcut from Step 6 exists. |
 | Shared copy (if used) | On a business day, `Customer-Success-Control-Tower-Daily.html` is newer than one schedule interval. |
 | Automations (if used) | They appear in Scout's automation list, and **Run now** produces the expected message. |
@@ -460,7 +463,7 @@ Folder F = <CSCT>\7-LiveConnector.
 - **Publish the shared copy now:** `Invoke-RestMethod -Method Post -Uri http://127.0.0.1:<PORT>/api/publish -Headers @{ 'X-CSCT' = 'publish' }`
 - **Configuration changes** apply within a minute. Code updates need a restart.
 - **Log file:** `%LOCALAPPDATA%\CSCT\connector.log`
-- **Private follow-up preferences:** `%LOCALAPPDATA%\CSCT\attention-state.json`. They persist across browser/connector restarts but are never part of a shared snapshot.
+- **Private follow-up preferences:** `%LOCALAPPDATA%\CSCT\attention-state.json`. They persist across browser/connector restarts. Importance, review and snooze choices are never part of a shared snapshot; cases closed or reopened by hand are shared as case number, state and time.
 - **Background work:** only one connector runs per user. While it runs, it checks for new e-mail every `pollSeconds`, runs a full sync every `fullSyncMinutes`, and publishes the shared copy on business days according to `settings.publish`.
 
 Command-line options, run from `<CSCT>\7-LiveConnector`:
@@ -490,11 +493,15 @@ No separate installation or automation is needed. The feature evaluates the mail
 | Missing ownership | At most 2 business hours, or the shorter case target |
 | Standard product-group cadence | At least 8 business hours; urgent/important cases retain their shorter target |
 
+A wait is marked **Urgent** after twice its target. A wait for a reply, first contact, ownership or a reopen is also urgent after one business day (the length of the configured working day), whichever comes first.
+
 The existing business-hour calendar (Step 3.2) also drives these timers. An ownership notice is not a technical reply. A customer chaser or account-team message does not reset the unanswered wait. An engineer reply clears its reason once it reaches this mailbox; another unresolved reason can keep the case in the list. A new wait episode or higher urgency returns a reviewed/snoozed case to review.
 
 **Teams:** the attention center itself never sends reminders to anyone. The optional end-of-day automation from Step 9 is a separate, consolidated review for the signed-in user. It does not message engineers, customers or managers without a separate preview and explicit approval.
 
-**History:** Cases > Closed defaults to official closure/archive notifications. Expand **Filter history** for account, date range, customer-agreed closure pending confirmation or inactivity-inferred records. Select any record for outcome, contacts, dates, escalation history and the complete available timeline. Earlier updates are expandable; nothing is deleted. Account 360 also provides case history.
+**History:** Cases > Closed defaults to closed cases: official closure/archive notifications and cases closed by hand (*Closed manually*). Expand **Filter history** for account, date range, customer-agreed closure pending confirmation or inactivity-inferred records. Select any record for outcome, contacts, dates, escalation history and the complete available timeline. Earlier updates are expandable; nothing is deleted. Account 360 also provides case history.
+
+**Close or reopen by hand:** open a case and choose **Mark as closed** when it is closed but no closure notification reached the mailbox. It moves to Cases > Closed as *Closed manually*. For a closure that was only pending or inferred (customer agreement or inactivity), the same button confirms it. **Move to open cases** reverses either choice, including for a case that an official notification closed. A case that was only inferred closed and is moved back closes again if the customer later agrees to close or `staleCaseDays` pass without e-mail, counted from the reopening. The choice is saved in `attention-state.json` as case number, state and time, appears in the shared copy and never changes the support portal. An official closure or reopen notification that arrives after your choice takes over, and e-mail that arrives after you closed a case is flagged in the case detail and in the Closed list so you can reopen it.
 
 ## Updating
 
@@ -516,6 +523,7 @@ Start-Process (Join-Path ([Environment]::GetFolderPath('Startup')) "Customer Suc
 
 - The update keeps `csct-live-config.json`, `mirp-latest.json` and the published copy. It never touches `%LOCALAPPDATA%\CSCT\attention-state.json`.
 - Upgrading from 1.4 adds `csct_attention.py`; keep the connector folder intact. Restart the connector, then reload any open dashboard tab to load the new UI.
+- Upgrading from 1.5 to 1.6 needs no migration. Once a case has been closed by hand, keep the connector at 1.6 or later: older versions do not accept the saved choice and report the preferences as unavailable. The update replaces `snapshot-template.html`, so the shared copy shows these cases from its next publication.
 - The repository now tracks only `.example.json` configuration/MIRP templates and a separate `Customer-Success-Control-Tower-Example.html`. Your actual runtime files are ignored by Git. Never `git add -f` them.
 - Repeat Step 3.2 if you changed the region.
 - Compare your file with [Configuration reference](#configuration-reference) to see whether new settings were added.
@@ -536,15 +544,17 @@ Start-Process (Join-Path ([Environment]::GetFolderPath('Startup')) "Customer Suc
 | The shared copy does not change while it is open | The OneDrive preview does not refresh by itself. Reload the page. |
 | The MIRP collector returns `signed-out` | Sign in to Engage Center in Scout's browser, then run the collector again. |
 | `mirp_apply.py` says the results are too old | Run the collector again. Results older than 36 hours are refused. |
-| Attention center says preferences are unavailable | Retry. If the local JSON is corrupt, back it up privately and restore a known-good copy; do not silently replace it or commit it. |
+| A page banner or the Attention center says saved preferences or case choices are unavailable | Retry. If the local JSON is corrupt, back it up privately and restore a known-good copy; do not silently replace it or commit it. Cases closed by hand are not applied until it loads. |
 | A preference changed in another tab | The revision check rejected the stale edit. Reload and try again. |
 | A wait remains after an engineer replied | Confirm that the reply reached this mailbox and the connector is fresh. A different remaining reason can keep the case listed. |
+| A case closed by hand came back | A closure or reopen notification that arrived after your choice takes over. Close it again if it is still wrong. The support portal is never changed. |
 | Last rows appear clipped in Scout's visible browser | Do not leave a fixed Playwright viewport larger than the real window. Restore native sizing with `page.setViewportSize({width:0,height:0})` and use actual window resizing for UI checks. |
 | Closed history seems incomplete | It is limited to loaded e-mails, not the support portal's complete case register. Increase `lookbackDays` if appropriate; no OneSupport record is downloaded. |
 
 ## Good to know
 
 - **Statuses are inferred from e-mail.** Status, ball in court and customer signals all come from the e-mail threads. Confirm in the case record before you act.
+- **Closing a case by hand is local.** It changes this dashboard and its shared copy, not the support portal.
 - **Customer-voice keywords cover English and Turkish only.**
 - **The engine uses a fixed UTC offset** and does not switch for daylight saving.
 - **The shared copy is updated only while the PC is on** and the connector is running.
@@ -645,4 +655,4 @@ python -m http.server 8792 --bind 127.0.0.1
 
 Open `http://127.0.0.1:8792/6-SampleData/customer-success-control-tower-demo.html`. Every case, person and e-mail address is invented; demo changes are in-memory and reset on reload. Never capture the user's live connector or actual shared dashboard for public screenshots. Stop this temporary server when finished. When using Scout's visible browser, restore its native viewport after layout checks instead of leaving a fixed test viewport.
 
-`tools\capture_screenshots.js` is a Playwright tool snippet for this demo page. It refuses non-demo input and saves PNGs under `csct-public-images` in Scout's execution working directory; create that folder before running it. Copy the resulting fictional captures into `docs\screenshots`. Its `finally` block restores native viewport sizing.
+`tools\capture_screenshots.js` is a Playwright tool snippet for this demo page. It refuses non-demo input and saves PNGs under `csct-public-images` in Scout's execution working directory; create that folder before running it. Copy the resulting fictional captures into `docs\screenshots`. It closes one fictional case by hand for two captures and moves it back, so the fixture is unchanged. Its `finally` block restores native viewport sizing.

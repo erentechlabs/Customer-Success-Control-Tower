@@ -121,7 +121,7 @@
     { id: "tower", label: "Control tower", icon: "gauge_regular" },
     { id: "queue", label: "Cases", icon: "clipboard_task_regular" },
     { id: "closed", label: "Cases", icon: "checkmark_circle_regular", hidden: true },
-    { id: "attention", label: "Attention center", icon: "clock_regular", privateView: true },
+    { id: "attention", label: "Attention center", icon: "clock_regular" },
     { id: "esc", label: "Escalations", icon: "arrow_circle_up_regular" },
     { id: "voice", label: "Customer voice", icon: "person_feedback_regular" },
     { id: "acct", label: "Account 360", icon: "building_multiple_regular" },
@@ -132,7 +132,7 @@
     queue: [S.red, "critical", S.red + " Red cases"],
     esc: [S.candidates, "attention", S.candidates + " escalation candidates"],
     voice: [S.overdueSignals, "caution", S.overdueSignals + " customer signals past due"],
-    attention: MODE !== "snapshot" && AT.ready ? [attentionModel().active.length, "caution", "Cases needing a new follow-up review"] : [0]
+    attention: AT.ready ? [attentionModel().active.length, "caution", MODE === "snapshot" ? "Published cases waiting for an update" : "Cases needing a new follow-up review"] : [0]
   } : {});
   const state = { tab: "tower", filter: "all", q: "", account: null, pane: "auto", packId: null,
     closedStatus: "Closed", closedAccount: "", closedPeriod: "all" };
@@ -144,7 +144,7 @@
       return '<button class="nav-item' + (on ? " on" : "") + '" type="button" data-tab="' + p.id + '" title="' + H(p.label) + '"' + (on ? ' aria-current="page"' : "") + '><span class="ni-ic">' + ico(p.icon) + '</span><span class="ni-lb">' + H(p.label) + "</span>" +
         (b && b[0] ? '<span class="badge ' + b[1] + '" title="' + H(b[2]) + '">' + b[0] + "</span>" : "") + "</button>";
     };
-    const mainPages = PAGES.filter((p) => !p.footer && !p.hidden && (!p.privateView || MODE !== "snapshot"));
+    const mainPages = PAGES.filter((p) => !p.footer && !p.hidden && (!p.liveOnly || MODE === "live"));
     navEl.innerHTML = mainPages.map(item).join("") +
       '<div class="nav-grow"></div><div class="nav-sep"></div>' +
       PAGES.filter((p) => p.footer).map(item).join("") + '<div class="nav-foot">Risk engine ' + H(CSCT_ENGINE_VERSION) + DOT + ({ live: "live data", snapshot: "shared snapshot", demo: "synthetic data" }[MODE]) + "</div>";

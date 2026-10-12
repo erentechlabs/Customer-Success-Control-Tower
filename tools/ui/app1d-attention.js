@@ -1,6 +1,44 @@
 
-  const AT = { ready: false, busy: false, error: "", notice: "", filter: "active",
+  const AT = { ready: false, loaded: false, busy: false, error: "", notice: "", filter: "active",
     preferences: { revision: 0, rules: CSCT_ATTENTION.defaults, cases: {} } };
+  // Cases closed or reopened by hand, read from the saved preferences (live, demo) or the published copy (snapshot).
+  // Demo data is fixed in time, so choices made there are dated with its as-of time.
+  const stateTime = () => (MODE === "demo" ? CTX.asOfMs : Date.now());
+  function manualStates() {
+    if (MODE === "snapshot") { return cleanManual(SNAP.manual); }
+    const found = {};
+    Object.keys(AT.preferences.cases).forEach((id) => { if (AT.preferences.cases[id].manual) { found[id] = AT.preferences.cases[id].manual; } });
+    return cleanManual(found);
+  }
+  let CASE_FLASH = null;
+  // The confirmation shown once after closing or reopening a case; it replaces the status note, an error is shown above it.
+  function withFlash(id, note) {
+    if (!CASE_FLASH || CASE_FLASH.id !== id) { return note; }
+    const f = CASE_FLASH; CASE_FLASH = null;
+    return '<div class="ib ' + f.kind + '">' + ico(f.icon) + "<div><b>" + H(f.title) + "</b>" + H(f.text) + "</div></div>" + (f.kind === "success" ? "" : note);
+  }
+  const caseStateButton = (id, target) => (MODE !== "snapshot" && AT.ready ? '<button class="btn" type="button" data-case-state="' + target +
+    '" data-case-id="' + H(id) + '"' + (AT.busy ? " disabled" : "") + ">" + ico(target === "closed" ? "checkmark_circle_regular" : "arrow_reset_regular") +
+    "<span>" + (target === "closed" ? "Mark as closed" : "Move to open cases") + "</span></button>" : "");
+  async function caseStateAction(id, target) {
+    if (MODE === "snapshot" || !AT.ready || AT.busy || (target !== "closed" && target !== "open")) { return; }
+    const c = caseIn[id] || closedIn[id];
+    if (!c) { return; }
+    const record = Object.assign({}, AT.preferences.cases[id]);
+    // Matching what the mailbox already shows removes the manual choice instead of storing a redundant one.
+    const choice = manualChoice(c, target, isoOf(stateTime()));
+    if (choice) { record.manual = choice; } else { delete record.manual; }
+    const official = !!c.OfficialClosed, inferred = !!c.AutoClosed && !official;
+    await attentionSave({ caseId: id, record }, "", (saved) => {
+      CASE_FLASH = saved
+        ? { id, kind: "success", icon: "checkmark_circle_filled", title: target === "open" ? "Moved to open cases" : inferred ? "Marked as closed" : "Moved to closed cases",
+          text: target === "closed"
+            ? (choice ? "Only Control Tower changed; Microsoft has not sent a closure notification. Use Move to open cases if this was a mistake." : "This is the status Microsoft's notifications show. Use Move to open cases to undo.")
+            : (official ? "Microsoft's last notification closed this case; a closure or reopen notification that arrives later takes over. "
+              : inferred ? "The e-mail history had closed this case without a closure notification; one that arrives later takes over. " : "") + "Use Mark as closed to close it again." }
+        : { id, kind: "critical", icon: "warning_filled", title: "Could not change the case status", text: AT.error || "Try again." };
+    });
+  }
   function attentionAdd(ms, hours) {
     let day = csctLocalDay(ms, CTX.tz), left = hours;
     for (let n = 0; n < 400; n++, day++) {
@@ -15,8 +53,9 @@
     throw new Error("No follow-up deadline within the configured calendar");
   }
   function attentionModel() {
-    return CSCT_ATTENTION.evaluate(X.cases, X.closed, AT.preferences, CTX.asOfMs,
-      { hours: (start, end) => csctBizHours(start, end, CTX), add: attentionAdd });
+    const preferences = MODE === "snapshot" ? { rules: CSCT_ATTENTION.defaults, cases: {} } : AT.preferences;
+    return CSCT_ATTENTION.evaluate(X.cases, X.closed, preferences, CTX.asOfMs,
+      { hours: (start, end) => csctBizHours(start, end, CTX), add: attentionAdd, day: CTX.cfg.BusinessHours_End - CTX.cfg.BusinessHours_Start });
   }
   function attentionFresh() {
     if (MODE === "demo") { return true; }
@@ -28,6 +67,7 @@
     const m = attentionModel();
     return { policy: "Local review only. No automatic sends or escalations.", ready: AT.ready,
       dataFresh: attentionFresh(), error: AT.error || null, thresholds: AT.preferences.rules,
+      businessDayHours: CTX.cfg.BusinessHours_End - CTX.cfg.BusinessHours_Start,
       needsReview: AT.ready ? m.active : [], snoozed: AT.ready ? m.snoozed : [],
       reviewed: AT.ready ? m.reviewed : [], visibilityChecks: m.coverage };
   }
@@ -61,18 +101,23 @@
   function openFollowUp(id) {
     const row = attentionModel().rows.find((r) => r.caseId === id);
     if (!row) { openCase(id); return; }
-    drawer.dataset.attentionCase = id; drawer.dataset.view = "followup";
-    const head = '<div><span class="eyebrow">' + H(row.status) + '</span><h2>' + H(row.title) +
+    const readOnly = MODE === "snapshot";
+    if (readOnly) { delete drawer.dataset.attentionCase; }
+    else { drawer.dataset.attentionCase = id; }
+    drawer.dataset.view = "followup";
+    const head = '<div><span class="eyebrow">' + (readOnly ? "Published follow-up" : H(row.status)) + '</span><h2>' + H(row.title) +
       '</h2><div class="sh-meta">' + H(row.account) + DOT + caseNo(id) + "</div></div>";
     const evidence = row.reasons.map((r) => '<div class="followup-evidence"><b>' + H(r.title) +
       '</b><p class="c2">' + attentionHours(r.elapsed) + " of " + r.threshold + " " + r.clock +
       '</p><div class="cap c2">Since ' + fmt(r.since) + DOT + "due " + fmt(r.due) +
       "</div><p>" + H(r.action) + "</p></div>").join("");
-    const body = '<div class="sh-sec">' + attentionBanner() + evidence +
-      (row.snoozedUntil ? '<p class="cap c2">Snoozed until ' + fmt(row.snoozedUntil) + "</p>" : "") +
-      '</div><div class="sh-sec">' + disclosure("manage-followup-" + id, "More options", attentionControls(id, false),
-        "Importance, snooze or draft") + '</div><p class="detail-note">Review only. No messages are sent.</p>';
-    const foot = (row.status === "Needs review" ? attentionButton("review", id, "Mark reviewed", true) :
+    const body = '<div class="sh-sec">' + (readOnly ? "" : attentionBanner()) + evidence +
+      (row.snoozedUntil ? '<p class="cap c2">Snoozed until ' + fmt(row.snoozedUntil) + "</p>" : "") + "</div>" +
+      (readOnly ? '<p class="detail-note">Read-only, as published ' + fmt(D.input.asOf) +
+        ". Default operational targets are used; private importance, reviewed and snooze choices are not shared. A later reply is visible after the next publication and page reload.</p>"
+        : '<div class="sh-sec">' + disclosure("manage-followup-" + id, "More options", attentionControls(id, false),
+          "Importance, snooze or draft") + '</div><p class="detail-note">Review only. No messages are sent.</p>');
+    const foot = (readOnly ? "" : row.status === "Needs review" ? attentionButton("review", id, "Mark reviewed", true) :
       attentionButton("reset", id, "Return to review")) +
       '<button class="btn" type="button" data-case="' + H(id) + '">View case</button>';
     showSheet("Follow-up " + id, head, body, foot);
@@ -84,7 +129,7 @@
       Object.keys(ruleLabels).map((key) => '<label>' + H(ruleLabels[key]) + '<input type="number" name="' + key +
         '" class="inp" min="0.5" max="48" step="0.5" required value="' + AT.preferences.rules[key] + '"' +
         (!AT.ready || AT.busy ? " disabled" : "") + ' aria-label="' + H(ruleLabels[key]) + ' hours"></label>').join("") +
-      '</div><p class="cap c2">Business hours except Sev 1/A (24/7). Critical importance uses at most 1 business hour. Urgency increases at twice the threshold. These are operational targets, not Microsoft SLA commitments.</p>' +
+      '</div><p class="cap c2">Business hours except Sev 1/A (24/7). Critical importance uses at most 1 business hour. Urgency increases at twice the threshold, or after one business day without a reply. These are operational targets, not Microsoft SLA commitments.</p>' +
       '<button class="btn" type="submit"' + (!AT.ready || AT.busy ? " disabled" : "") + ">Save thresholds</button></form>";
   }
   function attentionBanner() {
@@ -113,7 +158,8 @@
   }
   function pageAttention() {
     const m = attentionModel(), q = state.q.trim().toLowerCase();
-    const choose = AT.filter === "snoozed" ? m.snoozed : AT.filter === "reviewed" ? m.reviewed : m.active;
+    const readOnly = MODE === "snapshot";
+    const choose = readOnly ? m.active : AT.filter === "snoozed" ? m.snoozed : AT.filter === "reviewed" ? m.reviewed : m.active;
     const rows = choose.filter((r) => (r.caseId + " " + r.title + " " + r.account + " " + r.engineer).toLowerCase().includes(q));
     const coverage = m.coverage.filter((r) => (r.caseId + " " + r.title + " " + r.account).toLowerCase().includes(q));
     const filters = [["active", "Needs review", m.active.length], ["snoozed", "Snoozed", m.snoozed.length],
@@ -126,10 +172,14 @@
         : empty(q ? "No follow-ups match your search." : AT.filter === "active" ? "Nothing needs a new review right now." : "No cases in this view.");
     const tabs = '<div class="selbar watch-tabs" aria-label="Follow-up views">' + filters.map((f) => '<button class="sel' + (AT.filter === f[0] ? " on" : "") +
       '" type="button" data-attention-filter="' + f[0] + '" aria-pressed="' + (AT.filter === f[0]) + '">' + H(f[1]) + '<span class="cnt">' + f[2] + "</span></button>").join("") + "</div>";
-    return { sub: "Cases waiting for a reply or an update. Select a case to review it.",
-      body: attentionBanner() + '<div class="row"><div class="card watch-inbox">' + tabs + list +
+    return { sub: readOnly ? "Published reply and update waits. Read-only; personal review choices are not shared." :
+        "Cases waiting for a reply or an update. Select a case to review it.",
+      body: (readOnly ? '<p class="cap c2" style="margin-bottom:12px">As published ' + fmt(D.input.asOf) +
+        ". Uses standard follow-up targets; a new reply appears after the next publication and reload.</p>" : attentionBanner()) +
+        '<div class="row"><div class="card watch-inbox">' + (readOnly ? "" : tabs) + list +
         '</div></div><div class="row">' + disclosure("visibility-checks", "Visibility checks", checks, m.coverage.length + (m.coverage.length === 1 ? " record" : " records")) +
-        '</div><p class="cap c2">Replies clear automatically when they reach your mailbox. Nothing is sent to anyone.</p>' };
+        '</div><p class="cap c2">' + (readOnly ? "Read-only evidence from received e-mails, not proof of engineer inactivity." :
+          "Replies clear automatically when they reach your mailbox. Nothing is sent to anyone.") + "</p>" };
   }
   function attentionDigest() {
     const m = attentionModel();
@@ -183,11 +233,14 @@
     await attentionSave({ caseId: id, record }, action === "review" ? "Marked reviewed for this episode" : action === "reset" ? "Returned to review" : "Follow-up snoozed");
   }
   document.addEventListener("click", (event) => {
-    if (MODE === "snapshot" || !OUT) { return; }
-    const filter = event.target.closest("[data-attention-filter]");
-    if (filter) { AT.filter = filter.getAttribute("data-attention-filter"); render(false); return; }
+    if (!OUT) { return; }
     const followup = event.target.closest("[data-followup]");
     if (followup) { openFollowUp(followup.getAttribute("data-followup")); return; }
+    if (MODE === "snapshot") { return; }
+    const caseState = event.target.closest("[data-case-state]");
+    if (caseState) { caseStateAction(caseState.getAttribute("data-case-id"), caseState.getAttribute("data-case-state")); return; }
+    const filter = event.target.closest("[data-attention-filter]");
+    if (filter) { AT.filter = filter.getAttribute("data-attention-filter"); render(false); return; }
     const button = event.target.closest("[data-attention-action]");
     if (button) { attentionAction(button.getAttribute("data-attention-action"), button.getAttribute("data-attention-id")); }
   });

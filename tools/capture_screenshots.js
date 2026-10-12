@@ -10,6 +10,7 @@ async (page) => {
   const shots = [];
   const capture = async (name) => {
     await page.locator("#scroll").evaluate((el) => el.scrollTop = 0);
+    await page.waitForTimeout(250);
     await page.screenshot({ path: output + name + ".png", scale: "css" });
     shots.push(name);
   };
@@ -19,11 +20,15 @@ async (page) => {
     await page.evaluate(() => document.documentElement.dataset.theme = "light");
     await go("tower"); await capture("control-tower");
     await go("queue"); await capture("action-queue");
+    await page.locator(".case-table tr[data-case]").first().click(); await capture("case-detail");
+    // Close a case by hand to show the confirmation and the closed list, then move it back so the fixture is unchanged.
+    await page.locator('button[data-case-state="closed"]').click(); await page.waitForTimeout(400); await capture("manual-close");
+    await page.keyboard.press("Escape");
     await page.locator('.view-switch [data-goto="closed"]').click(); await capture("closed-cases");
+    await page.locator(".history tr[data-case]").first().click();
+    await page.locator('button[data-case-state="open"]').click(); await page.waitForTimeout(400); await page.keyboard.press("Escape");
     await go("attention"); await capture("attention-center");
     await page.locator(".watch-case").first().click(); await capture("follow-up-detail"); await page.keyboard.press("Escape");
-    await go("queue");
-    await page.locator(".case-table tr[data-case]").first().click(); await capture("case-detail"); await page.keyboard.press("Escape");
     await go("acct"); await capture("account-360");
     await go("voice"); await capture("customer-voice");
     await go("esc"); await capture("escalations");

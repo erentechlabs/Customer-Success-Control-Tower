@@ -1,10 +1,12 @@
 
   const historyDate = (c) => c.Status === "Inactive" ? c.ClosureInferredOn || c.ClosedOn : c.ClosedOn;
-  const historyLabel = (c) => c.Status === "Closed" ? c.ClosureKind === "archived" ? "Archived" : "Closed"
+  const historyLabel = (c) => c.Status === "Closed" ? c.ClosureKind === "manual" ? "Closed manually" : c.ClosureKind === "archived" ? "Archived" : "Closed"
     : c.Status === "Resolved" ? "Closure pending" : c.Status === "Inactive" ? "Inactive (inferred)" : c.Status || "Unknown";
   const historyIcon = (c) => ico(c.Status === "Closed" ? "checkmark_circle_regular" : "info_filled",
     c.Status === "Closed" ? "tone-success" : "tone-neutral");
   const historyStatus = (c) => '<span class="st">' + historyIcon(c) + "<span>" + H(historyLabel(c)) + "</span></span>";
+  // E-mail that arrived after a case was closed by hand, which may mean it still needs attention.
+  const activitySince = (c) => c.ClosureKind === "manual" && Date.parse(c.LastActivity || "") > Date.parse(c.ClosedOn || "");
   function resetHistoryFilters(status, account) {
     state.closedStatus = status || "Closed"; state.closedAccount = account || ""; state.closedPeriod = "all";
   }
@@ -22,7 +24,7 @@
       (accountView ? "" : "<th>Engineer</th><th>Closure outcome</th>") + "</tr></thead><tbody>" +
       rows.map((c) => '<tr class="click" data-case="' + H(c.CaseId) + '" tabindex="0"><td>' + caseCell(c, accountView) +
         "</td><td>" + historyStatus(c) + '</td><td><div class="two"><span>' + fmt(historyDate(c), false) +
-        '</span><span class="l2">' + (c.Status === "Closed" ? "Notification received" : c.Status === "Resolved" ? "Customer agreed to close" : "Inactivity threshold reached") +
+        '</span><span class="l2">' + (c.Status === "Closed" ? c.ClosureKind === "manual" ? activitySince(c) ? "New e-mail since closing" : "Closed in this dashboard" : "Notification received" : c.Status === "Resolved" ? "Customer agreed to close" : "Inactivity threshold reached") +
         "</span></div></td>" + (accountView ? "" : '<td><div class="two"><span>' + H(c.Engineer || "Not visible") +
         '</span><span class="l2">' + H(c.Severity || "Not set") + '</span></div></td><td><div class="two history-outcome">' +
         H(c.Resolution || "No outcome in the available history") + "</div></td>") + "</tr>").join("") + "</tbody></table></div>";
@@ -34,7 +36,7 @@
       '" aria-label="' + H(label) + '">' + options.map((o) => '<option value="' + H(o[0]) + '"' +
         (selected === o[0] ? " selected" : "") + ">" + H(o[1]) + "</option>").join("") + "</select></label>";
     const filters = '<div class="history-filters">' + choose("closedStatus", "Status",
-      [["Closed", "Closed / archived (" + confirmed + ")"], ["Resolved", "Closure pending"], ["Inactive", "Inactive (inferred)"], ["all", "All history"]],
+      [["Closed", "Closed (" + confirmed + ")"], ["Resolved", "Closure pending"], ["Inactive", "Inactive (inferred)"], ["all", "All history"]],
       state.closedStatus) + choose("closedAccount", "Account", [["", "All accounts"]].concat(accounts.map((a) => [a, a])), state.closedAccount) +
       choose("closedPeriod", "Period", [["all", "All available history"], ["7", "Last 7 days"], ["30", "Last 30 days"], ["90", "Last 90 days"]],
         state.closedPeriod) + "</div>";
@@ -42,9 +44,9 @@
       (state.q.trim() ? DOT + "matching " + H(state.q.trim()) : "") + '</span><button class="btn subtle" type="button" data-history-reset>Reset</button></div>';
     return { sub: "Open and closed cases, with status and the next step.",
       body: caseViews() + '<div class="card">' + disclosure("history-filters", "Filter history", filters,
-        state.closedStatus === "Closed" && !state.closedAccount && state.closedPeriod === "all" ? "Confirmed closures" : "Filters applied") + more +
+        state.closedStatus === "Closed" && !state.closedAccount && state.closedPeriod === "all" ? "Closed cases" : "Filters applied") + more +
         (rows.length ? closedTable(rows) : empty("No matching records.")) + "</div>" +
-        '<p class="cap c2">Pending closure and inactivity are separate from confirmed closure. The timeline shows the available e-mail history.</p>' };
+        '<p class="cap c2">Pending closure and inactivity are separate from confirmed closure. Closed manually means the case was closed in Control Tower before a Microsoft notification arrived. The timeline shows the available e-mail history.</p>' };
   }
   function casePeople(ci) {
     const mailLine = (addr) => addr ? '<div class="fm">' + (MODE === "live" ? '<a href="mailto:' + H(addr) + '">' + H(addr) + "</a>" : H(addr)) + "</div>" : "";
@@ -81,20 +83,24 @@
   function openClosedCase(id) {
     const ci = closedIn[id];
     if (!ci) { return; }
-    hideSug(); delete drawer.dataset.attentionCase;
-    const confirmed = ci.Status === "Closed", people = casePeople(ci);
+    hideSug();
+    if (MODE !== "snapshot") { drawer.dataset.attentionCase = id; drawer.dataset.view = "case"; } else { delete drawer.dataset.attentionCase; }
+    const confirmed = ci.Status === "Closed", manual = ci.ClosureKind === "manual", people = casePeople(ci);
     const duration = confirmed && ci.CreatedOn && ci.ClosedOn
       ? Math.max(0, Math.round((Date.parse(ci.ClosedOn) - Date.parse(ci.CreatedOn)) / DAY * 10) / 10) : null;
     const head = '<div><div class="sh-kpi">' + historyStatus(ci) +
       '</div><h2>' + H(ci.Title) + '</h2><div class="sh-meta"><span>' + caseNo(id) + DOT + H(ci.Account) +
       (ci.Severity ? DOT + H(ci.Severity) : "") + '</span><div>' + (confirmed ? "Closed " : "Recorded ") +
       fmt(historyDate(ci), false) + "</div></div></div>";
-    const notice = confirmed ? "A support " + (ci.ClosureKind === "archived" ? "archive" : "closure") +
+    const notice = manual ? "Closed in Control Tower. Microsoft has not sent a closure notification, so the support portal may still show this case as open. A closure or reopen notification that arrives later takes over." +
+      (activitySince(ci) ? " New e-mail has arrived since it was closed; move it back to open cases if it still needs attention." : "")
+      : confirmed ? "A support " + (ci.ClosureKind === "archived" ? "archive" : "closure") +
       " notification was received. This is the latest status visible in your mailbox."
-      : ci.Status === "Resolved" ? "The customer agreed to close, but no official closure notification is visible. Confirm the case status before treating it as closed."
-        : "This case left the open queue after inactivity. Its actual closure is not confirmed; the recorded date is the inactivity threshold, not a support closure date.";
+      : (ci.Status === "Resolved" ? "The customer agreed to close, but no official closure notification is visible. Confirm the case status before treating it as closed."
+        : "This case left the open queue after inactivity. Its actual closure is not confirmed; the recorded date is the inactivity threshold, not a support closure date.") +
+        (MODE !== "snapshot" ? " If you know it is closed, use Mark as closed." : "");
     const facts = '<div class="facts">' + fact("Case number", caseNo(id)) + fact("Account", H(ci.Account)) +
-      fact("Status", historyStatus(ci)) + fact(confirmed ? "Closed / archived" : "Recorded", fmt(historyDate(ci))) +
+      fact("Status", historyStatus(ci)) + fact(manual ? "Closed manually" : confirmed ? "Closed / archived" : "Recorded", fmt(historyDate(ci))) +
       fact("Created", fmt(ci.CreatedOn) + (ci.CreatedEstimated ? '<div class="fm">Estimated from available history</div>' : "")) +
       fact("Time to closure", duration === null || !Number.isFinite(duration) ? '<span class="c3">Not confirmed</span>' :
         H(duration + " calendar days") + (ci.CreatedEstimated ? '<div class="fm">Estimated creation date</div>' : "")) +
@@ -104,10 +110,11 @@
       fact("First ownership", fmt(ci.FirstOwnershipOn)) + fact("First engineer e-mail", fmt(ci.FirstEngineerReplyOn)) +
       fact("Last Microsoft update", fmt(ci.LastMicrosoftUpdate)) + fact("Last customer update", fmt(ci.LastCustomerUpdate)) +
       fact("Last activity", fmt(ci.LastActivity)) + fact("Reopen count", H(ci.ReopenCount === undefined ? "Not recorded" : ci.ReopenCount)) + "</div>";
-    let body = '<div class="sh-sec"><div class="ib' + (confirmed ? "" : " caution") + '">' + ico("info_filled") +
-      '<div><b>' + H(historyLabel(ci)) + "</b>" + H(notice) + "</div></div></div>" +
-      '<div class="sh-sec"><h3>Closure outcome</h3><p>' + H(ci.Resolution || "No closure outcome in the available history.") +
-      '</p><p class="cap c2">This is the recorded closure outcome, not an inferred technical fix. See the timeline or original e-mails for resolution details.</p></div>' +
+    const noticeBar = '<div class="ib' + (confirmed && !activitySince(ci) ? "" : " caution") + '">' + ico("info_filled") +
+      '<div><b>' + H(historyLabel(ci)) + "</b>" + H(notice) + "</div></div>";
+    let body = '<div class="sh-sec">' + withFlash(id, noticeBar) + "</div>" +
+      (manual ? "" : '<div class="sh-sec"><h3>Closure outcome</h3><p>' + H(ci.Resolution || "No closure outcome in the available history.") +
+      '</p><p class="cap c2">This is the recorded closure outcome, not an inferred technical fix. See the timeline or original e-mails for resolution details.</p></div>') +
       '<div class="sh-sec">' + disclosure("closed-facts-" + id, "Case information", facts, "People, dates and service") + "</div>" + caseSignalsSection(id);
     const escalations = X.escalations.filter((e) => e.CaseId === id);
     if (escalations.length) {
@@ -117,6 +124,6 @@
     }
     body += caseTimelineSection(id);
     const foot = caseSourceButton(ci.CaseLink, "Open case record") + caseSourceButton(ci.LastMailLink, "Open latest e-mail") +
-      '<button class="btn" type="button" data-close="1">Close</button>';
+      (manual || ci.OfficialClosed ? "" : caseStateButton(id, "closed")) + caseStateButton(id, "open") + '<button class="btn" type="button" data-close="1">Close</button>';
     showSheet("Case history " + id, head, body, foot);
   }

@@ -49,8 +49,9 @@ class PreferencesTests(unittest.TestCase):
             {"revision": 0, "caseId": CASE, "record": {"priority": "Unknown"}},
             {"revision": 0, "rules": {"standardHours": 4}},
             {"revision": 0, "rules": dict(DEFAULT_RULES, standardHours=float("nan"))},
-            {"revision": 0, "rules": dict(DEFAULT_RULES, standardHours=10**400)},
             {"revision": 0, "rules": dict(DEFAULT_RULES, standardHours=True)},
+            {"revision": 0, "rules": dict(DEFAULT_RULES, standardHours=10**400)},
+            {"revision": 0, "rules": dict(DEFAULT_RULES, standardHours=float("inf"))},
             {"revision": 0, "caseId": CASE, "record": {}, "rules": DEFAULT_RULES},
             {"revision": 0, "caseId": CASE, "record": {"reviewed": dict(MARKER, level=True)}},
             {"revision": 0, "caseId": CASE, "record": {"snooze": dict(MARKER, until="bad")}},
@@ -60,6 +61,58 @@ class PreferencesTests(unittest.TestCase):
             with self.subTest(body=body), self.assertRaises(ValueError):
                 self.store.update(body)
         self.assertEqual(self.store.read()["revision"], 0)
+
+    def test_manual_case_state_round_trip(self):
+        at = datetime.now(timezone.utc).isoformat()
+        state = self.store.update({"revision": 0, "caseId": CASE, "record": {"priority": "Important", "manual": {"state": "closed", "at": at}}})
+        self.assertEqual(self.store.manual_states(), {CASE: {"state": "closed", "at": at}})
+        self.assertEqual(AttentionStore(self.tmp.name).read(), state)
+        state = self.store.update({"revision": state["revision"], "caseId": CASE, "record": {"priority": "Important"}})
+        self.assertEqual(self.store.manual_states(), {})
+        self.assertEqual(state["cases"][CASE], {"priority": "Important"})
+
+    def test_empty_record_removes_the_case_entry(self):
+        at = datetime.now(timezone.utc).isoformat()
+        state = self.store.update({"revision": 0, "caseId": CASE, "record": {"manual": {"state": "open", "at": at}}})
+        self.assertIn(CASE, state["cases"])
+        state = self.store.update({"revision": state["revision"], "caseId": CASE, "record": {}})
+        self.assertNotIn(CASE, state["cases"])
+        self.assertEqual(state["revision"], 2)
+
+    def test_future_timestamps_in_a_stored_file_do_not_make_it_unreadable(self):
+        now = datetime.now(timezone.utc)
+        os.makedirs(os.path.dirname(self.store.path), exist_ok=True)
+        stored = {"revision": 3, "rules": dict(DEFAULT_RULES), "cases": {CASE: {
+            "manual": {"state": "closed", "at": (now + timedelta(minutes=20)).isoformat()},
+            "snooze": dict(MARKER, until=(now + timedelta(days=9)).isoformat())}}}
+        with open(self.store.path, "w", encoding="utf-8") as f:
+            json.dump(stored, f)
+        self.assertEqual(self.store.read()["revision"], 3)
+        self.assertEqual(self.store.manual_states()[CASE]["state"], "closed")
+        other = "2610100000000002"
+        self.store.update({"revision": 3, "caseId": other, "record": {"priority": "Important"}})
+        for record in ({"manual": {"state": "open", "at": (now + timedelta(minutes=20)).isoformat()}},
+                       {"snooze": dict(MARKER, until=(now + timedelta(days=9)).isoformat())}):
+            with self.subTest(record=record), self.assertRaises(ValueError):
+                self.store.update({"revision": 4, "caseId": other, "record": record})
+
+    def test_manual_case_state_validation(self):
+        now = datetime.now(timezone.utc)
+        good = now.isoformat()
+        bad = [
+            "closed", {"state": "closed"}, {"at": good}, {"state": "closed", "at": good, "note": "x"},
+            {"state": "resolved", "at": good}, {"state": True, "at": good}, {"state": "closed", "at": 5},
+            {"state": "closed", "at": "bad"}, {"state": "closed", "at": now.replace(tzinfo=None).isoformat()},
+            {"state": "closed", "at": (now + timedelta(minutes=6)).isoformat()},
+            {"state": "closed", "at": "2019-12-31T23:59:59+00:00"}, {"state": "closed", "at": "2" * 41},
+        ]
+        for manual in bad:
+            with self.subTest(manual=manual), self.assertRaises(ValueError):
+                self.store.update({"revision": 0, "caseId": CASE, "record": {"manual": manual}})
+        self.assertEqual(self.store.read()["revision"], 0)
+        for accepted in (good, now.strftime("%Y-%m-%dT%H:%M:%S.000Z"), (now + timedelta(minutes=4)).isoformat()):
+            self.store.update({"revision": self.store.read()["revision"], "caseId": CASE,
+                               "record": {"manual": {"state": "open", "at": accepted}}})
 
     def test_snooze_and_thresholds(self):
         until = (datetime.now(timezone.utc) + timedelta(hours=1)).isoformat()
@@ -122,7 +175,15 @@ class RouteTests(unittest.TestCase):
         self.assertEqual(self.request(body, headers)[0], 409)
         self.assertEqual(self.request({"revision": saved["revision"], "caseId": "wrong", "record": {}}, headers)[0], 400)
         self.assertEqual(self.request({"revision": saved["revision"], "caseId": CASE, "record": {"mail": "not allowed"}}, headers)[0], 400)
-        self.assertEqual(self.request({"revision": saved["revision"], "rules": dict(DEFAULT_RULES, standardHours=10**400)}, headers)[0], 400)
+        huge = {"revision": saved["revision"], "rules": dict(DEFAULT_RULES, standardHours=10**400)}
+        self.assertEqual(self.request(huge, headers)[0], 400)
+        stamp = datetime.now(timezone.utc).isoformat()
+        manual = {"revision": saved["revision"], "caseId": CASE, "record": {"manual": {"state": "closed", "at": stamp}}}
+        code, closed = self.request(manual, headers)
+        self.assertEqual(code, 200)
+        self.assertEqual(closed["cases"][CASE]["manual"], {"state": "closed", "at": stamp})
+        self.assertEqual(self.request({"revision": closed["revision"], "caseId": CASE,
+                                       "record": {"manual": {"state": "closed", "at": "2099-01-01T00:00:00Z"}}}, headers)[0], 400)
 
 
 if __name__ == "__main__":

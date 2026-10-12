@@ -15,7 +15,7 @@ vm.runInContext(engine + "\n" + spec + "\n" +
   'let CTX = csctBuildCtx({asOf:"2026-10-12T12:00:00Z",config:CSCT_SPEC.config,holidays:CSCT_SPEC.holidays});\n' +
   'const SPEC=CSCT_SPEC,TZMS=CTX.tz*3600000,DOT=" | ",MON=[];\n' +
   fs.readFileSync(path.join(ui, "app1b-fold.js"), "utf8") + "\n" +
-  'globalThis.fold=foldAt;globalThis.biz=csctBizHours;globalThis.context=CTX;', sandbox);
+  'globalThis.fold=foldAt;globalThis.biz=csctBizHours;globalThis.context=CTX;globalThis.cleanManual=cleanManual;globalThis.manualChoice=manualChoice;', sandbox);
 const HOUR = 3600000;
 const ms = Date.parse;
 const now = ms("2026-10-12T12:00:00Z"); // Monday 15:00, UTC+3.
@@ -76,6 +76,22 @@ test("Importance shortens follow-up but not risk or severity", () => {
 test("Sev C follows its separate threshold", () => {
   assert.equal(run({ Severity: "Sev C", CustomerWaitingSince: "2026-10-12T06:00:00Z" }).active.length, 0);
 });
+test("Replies become urgent after one business day, other waits at twice the threshold", () => {
+  assert.equal(rules.longAfter("reply", 8, false, 9), 9);
+  assert.equal(rules.longAfter("reply", 4, false, 9), 8);
+  assert.equal(rules.longAfter("owner", 2, false, 9), 4);
+  assert.equal(rules.longAfter("update", 8, false, 9), 16);
+  assert.equal(rules.longAfter("pg", 8, false, 9), 16);
+  assert.equal(rules.longAfter("reply", 8, true, 9), 16);
+  const sevC = (since, day) => rules.evaluate([Object.assign({}, base, { Severity: "Sev C", CustomerWaitingSince: since })], [], prefs(), now,
+    day === undefined ? clock : Object.assign({}, clock, { day })).active[0];
+  assert.equal(sevC("2026-10-09T12:30:00Z").level, 1);
+  assert.equal(sevC("2026-10-09T12:00:00Z").level, 2);
+  assert.equal(sevC("2026-10-09T13:00:00Z", 8).level, 2);
+  assert.equal(sevC("2026-10-09T13:00:00Z").level, 1);
+  const pg = run({ NextActionOwner: "Microsoft", FollowUpBall: "Product Group", LastMicrosoftUpdate: "2026-10-09T08:00:00Z" }).active[0];
+  assert.equal(pg.reasons[0].key, "pg"); assert.equal(pg.level, 1);
+});
 test("PG follow-up waits longer", () => {
   assert.equal(run({ NextActionOwner: "Microsoft", FollowUpBall: "Product Group" }).active.length, 0);
   const r = run({ NextActionOwner: "Microsoft", FollowUpBall: "Product Group", LastMicrosoftUpdate: "2026-10-09T12:00:00Z" });
@@ -124,10 +140,10 @@ test("Closed and inferred-inactive cases are visibility checks, not response ala
   ], prefs(), now, clock);
   assert.equal(result.active.length, 0); assert.equal(result.coverage.length, 2);
 });
-function fold(events) {
-  return sandbox.fold({ accounts: [{ Title: "Example" }], cases: { [base.CaseId]: { account: "Example" } },
+function fold(events, manual, at = now) {
+  return sandbox.fold({ accounts: [{ Title: "Example" }], cases: { [base.CaseId]: { account: "Example" } }, me: { name: "Case Owner" },
     events: events.map((e) => Object.assign({ caseId: base.CaseId, actor: "Test Engineer" }, e)) },
-    now, { cases: {}, accounts: {} }, true);
+    at, { cases: {}, accounts: {} }, true, manual);
 }
 const created = { kind: "created", t: "2026-10-12T06:00:00Z", sev: "B" };
 const owner = { kind: "ownership", t: "2026-10-12T06:05:00Z", engineer: "Test Engineer" };
@@ -209,29 +225,136 @@ test("Inactive history has a recorded threshold distinct from last activity", ()
   assert.equal(c.ClosureInferredOn, "2026-09-22T07:00:00.000Z");
   assert.notEqual(c.ClosedOn, c.ClosureInferredOn);
 });
+const manualAt = (state, at) => ({ [base.CaseId]: { state, at } });
+const unanswered = [created, owner, { kind: "customer_update", t: "2026-10-12T07:00:00Z", role: "customer",
+  signals: [{ type: "Complaint", category: "Delay", label: "Delay", phrase: "slow" }] }];
+test("Closing an open case by hand moves it to history without inventing a Microsoft notice", () => {
+  const plain = fold(unanswered);
+  assert.equal(plain.extra.cases.length, 1); assert.equal(plain.extra.cases[0].AutoClosed, false);
+  assert.equal(plain.extra.cases[0].ManualState, null);
+  assert.equal(plain.extra.signals[0].Status, "New");
+  const result = fold(unanswered, manualAt("closed", "2026-10-12T10:00:00Z"));
+  assert.equal(result.extra.cases.length, 0); assert.equal(result.input.cases.length, 0);
+  const c = result.extra.closed[0];
+  assert.equal(c.Status, "Closed"); assert.equal(c.ClosureKind, "manual"); assert.equal(c.ClosedOn, "2026-10-12T10:00:00.000Z");
+  assert.equal(c.ClosureInferredOn, null); assert.equal(c.AutoClosed, false); assert.equal(c.ManualState, "closed");
+  assert.match(c.Resolution, /Closed manually/);
+  assert.equal(c.LastCustomerUpdate, "2026-10-12T07:00:00.000Z");
+  const change = result.extra.events.filter((e) => e.EventType === "Status change");
+  assert.equal(change.length, 1); assert.equal(change[0].Actor, "Case Owner"); assert.equal(change[0].EventTime, "2026-10-12T10:00:00.000Z");
+  assert.equal(result.extra.signals[0].Status, "Resolved");
+  assert.equal(fold(unanswered).extra.events.filter((e) => e.EventType === "Status change").length, 0);
+});
+test("Reopening a closed case by hand does not look like a Microsoft reopen", () => {
+  const closedEvents = [created, owner, { kind: "closed", t: "2026-10-12T08:00:00Z", role: "system" }];
+  assert.equal(fold(closedEvents).extra.closed[0].AutoClosed, true);
+  const result = fold(closedEvents, manualAt("open", "2026-10-12T09:00:00Z"));
+  assert.equal(result.extra.closed.length, 0); assert.equal(result.extra.cases.length, 1);
+  const c = result.extra.cases[0];
+  assert.equal(c.AutoClosed, true); assert.equal(c.ManualState, "open");
+  assert.equal(c.LastReopenedOn, null); assert.equal(c.CustomerWaitingSince, null); assert.equal(c.ReopenCount, 0);
+  const rows = rules.evaluate(result.extra.cases, result.extra.closed, prefs(), now, clock).rows;
+  assert.ok(rows.every((r) => r.reasons.every((x) => x.key !== "reopen")));
+  assert.equal(result.extra.events.filter((e) => e.EventType === "Status change")[0].Detail, "Moved to open cases in Control Tower");
+});
+test("Official closure or reopen notices that arrive after a manual choice take over", () => {
+  const closedEvents = [created, owner, { kind: "closed", t: "2026-10-12T08:00:00Z", role: "system" }];
+  assert.equal(fold(closedEvents, manualAt("open", "2026-10-12T07:30:00Z")).extra.closed.length, 1);
+  const closedAgain = closedEvents.concat({ kind: "closed", t: "2026-10-12T11:00:00Z", role: "system" });
+  const again = fold(closedAgain, manualAt("open", "2026-10-12T09:00:00Z"));
+  assert.equal(again.extra.cases.length, 0); assert.equal(again.extra.closed[0].ClosureKind, "closed");
+  assert.equal(again.extra.events.filter((e) => e.EventType === "Status change").length, 0);
+  const reopened = fold(unanswered.concat({ kind: "reopened", t: "2026-10-12T11:00:00Z", role: "system" }), manualAt("closed", "2026-10-12T10:00:00Z"));
+  assert.equal(reopened.extra.cases.length, 1); assert.equal(reopened.extra.closed.length, 0);
+  assert.equal(reopened.extra.cases[0].ManualState, null);
+  const later = fold(unanswered.concat({ kind: "reopened", t: "2026-10-12T09:00:00Z", role: "system" }), manualAt("closed", "2026-10-12T10:00:00Z"));
+  assert.equal(later.extra.cases.length, 0); assert.equal(later.extra.closed[0].ClosureKind, "manual");
+});
+test("Manual choices are ignored when malformed or when no choice is passed", () => {
+  const cleaned = sandbox.cleanManual({ [base.CaseId]: { state: "closed", at: "2026-10-12T10:00:00Z" }, bad: { state: "closed", at: "2026-10-12T10:00:00Z" },
+    "2610100000000002": { state: "resolved", at: "2026-10-12T10:00:00Z" }, "2610100000000003": { state: "open", at: "soon" }, "2610100000000004": null });
+  assert.deepEqual(Object.keys(cleaned), [base.CaseId]);
+  assert.deepEqual(Object.keys(sandbox.cleanManual(null)), []); assert.deepEqual(Object.keys(sandbox.cleanManual("closed")), []);
+  assert.equal(fold(unanswered, { [base.CaseId]: { state: "resolved", at: "2026-10-12T10:00:00Z" } }).extra.cases.length, 1);
+  assert.equal(fold(unanswered, { [base.CaseId]: { state: "closed", at: "invalid" } }).extra.cases.length, 1);
+});
+test("A closure inferred from inactivity or customer agreement can be confirmed by hand", () => {
+  const inactive = [{ kind: "created", t: "2026-09-01T06:00:00Z", sev: "B" }, { kind: "ownership", t: "2026-09-01T07:00:00Z", engineer: "Test Engineer" }];
+  const plain = fold(inactive).extra.closed[0];
+  assert.equal(plain.Status, "Inactive"); assert.equal(plain.AutoClosed, true); assert.equal(plain.OfficialClosed, false);
+  const confirmed = fold(inactive, manualAt("closed", "2026-10-12T10:00:00Z")).extra.closed[0];
+  assert.equal(confirmed.Status, "Closed"); assert.equal(confirmed.ClosureKind, "manual"); assert.equal(confirmed.ClosedOn, "2026-10-12T10:00:00.000Z");
+  assert.equal(confirmed.ClosureInferredOn, null); assert.equal(confirmed.AutoClosed, true); assert.equal(confirmed.OfficialClosed, false);
+  assert.equal(confirmed.ManualState, "closed");
+  const pending = [created, owner, { kind: "customer_update", t: "2026-10-12T08:00:00Z", closure: true, role: "customer" }];
+  assert.equal(fold(pending).extra.closed[0].Status, "Resolved");
+  assert.equal(fold(pending, manualAt("closed", "2026-10-12T10:00:00Z")).extra.closed[0].ClosureKind, "manual");
+  const reopened = fold(inactive, manualAt("open", "2026-10-12T10:00:00Z")).extra.cases[0];
+  assert.equal(reopened.AutoClosed, true); assert.equal(reopened.OfficialClosed, false); assert.equal(reopened.ManualState, "open");
+  assert.equal(fold([created, owner, { kind: "closed", t: "2026-10-12T08:00:00Z", role: "system" }]).extra.closed[0].OfficialClosed, true);
+  assert.equal(fold(unanswered).extra.cases[0].OfficialClosed, false);
+});
+test("A case reopened by hand after an inferred closure closes again on later evidence", () => {
+  const inactive = [{ kind: "created", t: "2026-09-01T06:00:00Z", sev: "B" }, { kind: "ownership", t: "2026-09-01T07:00:00Z", engineer: "Test Engineer" }];
+  const choice = manualAt("open", "2026-10-12T10:00:00Z");
+  const held = fold(inactive, choice).extra.cases[0];
+  assert.equal(held.ManualState, "open"); assert.equal(held.AutoClosed, true);
+  assert.equal(fold(inactive, choice, ms("2026-11-02T09:00:00Z")).extra.cases.length, 1);
+  const later = fold(inactive, choice, ms("2026-11-03T10:00:01Z")).extra;
+  assert.equal(later.cases.length, 0);
+  assert.equal(later.closed[0].Status, "Inactive"); assert.equal(later.closed[0].ClosureInferredOn, "2026-11-02T10:00:00.000Z");
+  assert.equal(later.closed[0].ManualState, null); assert.equal(later.closed[0].AutoClosed, true);
+  const active = fold(inactive.concat({ kind: "customer_update", t: "2026-10-12T11:00:00Z", role: "customer" }), choice).extra.cases[0];
+  assert.equal(active.AutoClosed, false); assert.equal(active.ManualState, null);
+  const asked = [created, owner, { kind: "customer_update", t: "2026-10-12T08:00:00Z", closure: true, role: "customer" }];
+  assert.equal(fold(asked, choice).extra.cases[0].ManualState, "open");
+  const again = fold(asked.concat({ kind: "customer_update", t: "2026-10-12T11:00:00Z", closure: true, role: "customer" }), choice).extra;
+  assert.equal(again.cases.length, 0); assert.equal(again.closed[0].Status, "Resolved"); assert.equal(again.closed[0].ManualState, null);
+  const official = [created, owner, { kind: "closed", t: "2026-10-12T08:00:00Z", role: "system" }, { kind: "customer_update", t: "2026-10-12T11:00:00Z", role: "customer" }];
+  assert.equal(fold(official, manualAt("open", "2026-10-12T09:00:00Z")).extra.cases[0].ManualState, "open");
+});
+test("A manual choice is stored only when the official e-mail history does not already show that state", () => {
+  const official = { AutoClosed: true, OfficialClosed: true }, inferred = { AutoClosed: true, OfficialClosed: false }, open = { AutoClosed: false, OfficialClosed: false };
+  const show = (c, target) => { const v = sandbox.manualChoice(c, target, "T"); return v ? v.state + "@" + v.at : null; };
+  assert.equal(show(official, "closed"), null); assert.equal(show(official, "open"), "open@T");
+  assert.equal(show(inferred, "closed"), "closed@T"); assert.equal(show(inferred, "open"), "open@T");
+  assert.equal(show(open, "open"), null); assert.equal(show(open, "closed"), "closed@T");
+});
+test("Manually closed cases are not visibility checks", () => {
+  const result = rules.evaluate([], [
+    { CaseId: "1", ClosedOn: "2026-10-12T07:00:00Z", Status: "Closed", ClosureKind: "manual", Engineer: "" },
+    { CaseId: "2", ClosedOn: "2026-10-12T07:00:00Z", Status: "Closed", ClosureKind: "closed", Engineer: "" }
+  ], prefs(), now, clock);
+  assert.deepEqual(result.coverage.map((c) => c.caseId), ["2"]);
+});
 vm.runInContext('let X={closed:[]}; const state={q:"",closedStatus:"Closed",closedAccount:"",closedPeriod:"all"};\n' +
   'const hay=(c)=>(c.CaseId+" "+c.Account+" "+c.Title+" "+(c.Engineer||"")).toLowerCase();\n' +
   fs.readFileSync(path.join(ui, "app4-closed.js"), "utf8") +
   '\nglobalThis.historyRows=closedRows;globalThis.historySet=(rows,options)=>{X.closed=rows;Object.assign(state,options);};' +
-  '\nglobalThis.historyDate=historyDate;globalThis.historyLabel=historyLabel;', sandbox);
+  '\nglobalThis.historyDate=historyDate;globalThis.historyLabel=historyLabel;globalThis.activitySince=activitySince;', sandbox);
 const history = [
   { CaseId: "1", Status: "Closed", Account: "Example", Title: "Older", ClosedOn: "2026-09-01T08:00:00Z" },
   { CaseId: "2", Status: "Closed", Account: "Example", Title: "Recent", Engineer: "Test Engineer", ClosedOn: "2026-10-12T08:00:00Z", ClosureKind: "archived" },
   { CaseId: "3", Status: "Inactive", Account: "Other", Title: "Inactive", ClosedOn: "2026-09-01T08:00:00Z", ClosureInferredOn: "2026-10-11T08:00:00Z" },
-  { CaseId: "4", Status: "Resolved", Account: "Other", Title: "Pending", ClosedOn: "2026-10-10T08:00:00Z" }
+  { CaseId: "4", Status: "Resolved", Account: "Other", Title: "Pending", ClosedOn: "2026-10-10T08:00:00Z" },
+  { CaseId: "5", Status: "Closed", Account: "Example", Title: "By hand", ClosedOn: "2026-10-12T09:00:00Z", ClosureKind: "manual", LastActivity: "2026-10-12T10:00:00Z" }
 ];
 test("Closed history filters status, account, period and search together", () => {
   sandbox.historySet(history, { q: "", closedStatus: "Closed", closedAccount: "", closedPeriod: "all" });
-  assert.deepEqual(Array.from(sandbox.historyRows(), (c) => c.CaseId), ["2", "1"]);
+  assert.deepEqual(Array.from(sandbox.historyRows(), (c) => c.CaseId), ["5", "2", "1"]);
   sandbox.historySet(history, { closedPeriod: "7", q: "engineer", closedAccount: "Example" });
   assert.deepEqual(Array.from(sandbox.historyRows(), (c) => c.CaseId), ["2"]);
   sandbox.historySet(history, { closedStatus: "all", q: "", closedAccount: "", closedPeriod: "7" });
-  assert.deepEqual(Array.from(sandbox.historyRows(), (c) => c.CaseId), ["2", "3", "4"]);
+  assert.deepEqual(Array.from(sandbox.historyRows(), (c) => c.CaseId), ["5", "2", "3", "4"]);
 });
 test("History labels never present customer consent or inactivity as confirmed closure", () => {
   assert.equal(sandbox.historyLabel(history[1]), "Archived");
   assert.equal(sandbox.historyLabel(history[2]), "Inactive (inferred)");
   assert.equal(sandbox.historyLabel(history[3]), "Closure pending");
   assert.equal(sandbox.historyDate(history[2]), history[2].ClosureInferredOn);
+  assert.equal(sandbox.historyLabel(history[4]), "Closed manually");
+  assert.equal(sandbox.activitySince(history[4]), true);
+  assert.equal(sandbox.activitySince(Object.assign({}, history[4], { LastActivity: "2026-10-12T08:00:00Z" })), false);
+  assert.equal(sandbox.activitySince(history[1]), false);
 });
 console.log(checked + " follow-up rule and event-fold checks passed.");

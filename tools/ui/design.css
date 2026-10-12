@@ -235,7 +235,7 @@ select.inp { appearance: none; background-image: var(--chev); background-positio
 .ib > .i { margin-top: 2px; color: var(--cp-accent); }
 .ib.caution { background: var(--cp-warning-soft); } .ib.caution > .i { color: var(--cp-warning); }
 .ib.critical { background: var(--cp-danger-soft); } .ib.critical > .i { color: var(--cp-danger); }
-.ib.success { background: var(--cp-success-soft); }
+.ib.success { background: var(--cp-success-soft); } .ib.success > .i { color: var(--cp-success); }
 .split { display: grid; grid-template-columns: 224px minmax(0, 1fr); gap: 16px; align-items: start; }
 .split > .card:first-child { position: sticky; top: var(--ph-h, 80px); max-height: calc(100dvh - 72px - var(--ph-h, 80px)); display: flex; flex-direction: column; }
 .split .ch, .account-search { flex: none; } .account-search { margin-bottom: 8px; }

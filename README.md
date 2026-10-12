@@ -11,7 +11,7 @@ A calm, explainable portfolio view for **Microsoft Unified support cases**. It b
 | Area | What it shows |
 | --- | --- |
 | **Control tower** | Four essential indicators, cases needing a closer look, account health and recent activity. Trends are available without dominating the page. |
-| **Cases** | Open and Closed views, status, next step and activity. Closed records retain people, dates, outcome and the complete available timeline. |
+| **Cases** | Open and Closed views, status, next step and activity. Closed records retain people, dates, outcome and the complete available timeline. A case can be closed or reopened by hand when the mailbox does not show it. |
 | **Attention center** | A quiet list of cases waiting for a reply, ownership or progress. Select a case to review it; importance, snooze and draft options stay in the detail view. |
 | **Account 360** | Account risk, MIRP confirmation/expiry, contacts and commercial context, open cases and clickable case history. |
 | **Customer voice** | Complaints, escalation requests and additional asks detected in English/Turkish case threads. |
@@ -27,6 +27,7 @@ The attention center is a **local review queue, not a message bot**.
 
 - Detects missing ownership, an assigned engineer with no personal reply, unanswered customer messages, Microsoft/product-group update delays and reopened cases without a fresh update.
 - Counts business hours for normal cases and elapsed 24/7 hours for Sev 1/A. These are operational targets, separate from contractual SLA.
+- Marks a wait urgent at twice its target. A wait for a reply, first contact, ownership or a reopen is also urgent after one business day, whichever comes first.
 - Groups reasons into one case entry. Repeated customer chasers and automatic notices do not restart the wait.
 - Clears the unanswered-message reason when an engineer reply reaches the user's mailbox. Other unresolved reasons can keep the case visible.
 - Supports review and snooze for the current episode; a new episode or higher urgency returns to review.
@@ -34,6 +35,14 @@ The attention center is a **local review queue, not a message bot**.
 - Flags incomplete assignment history and unconfirmed closure separately instead of claiming an engineer failed to respond.
 
 Closed/archive notifications are distinguished from **customer-agreed closure pending confirmation** and **inactivity inferred from e-mail**. Reopened cases return to the open view. No technical fix is invented from a generic closure notice.
+
+### Close or reopen by hand
+
+When a case is closed but no closure notification reached the mailbox, open it and choose **Mark as closed**. It moves to Cases > Closed as *Closed manually*; the same button confirms a closure that was only pending or inferred. **Move to open cases** reverses either choice, including for an officially closed case. A case that was only inferred closed and is moved back closes again if the customer later agrees to close or the quiet period passes, counted from the reopening.
+
+![Closing a case by hand](docs/screenshots/manual-close.png)
+
+The choice is stored locally as case number, state and time. It never changes the support portal, and an official closure or reopen notification that arrives later takes over. E-mail that arrives after a manual close is flagged so the case can be reopened. The shared copy shows these cases as *Closed manually*.
 
 ## Screenshots
 
@@ -67,7 +76,7 @@ flowchart TB
     SP --> BI[Power BI portfolio model]
 ```
 
-The local dashboard folds the available mailbox events and scores **open cases only**. Closed history is browsable but does not receive a fabricated current risk score. Mailbox events stay in memory; follow-up preferences are a small, separate local file. The shared copy excludes those preferences and cannot expose the user's private attention queue.
+The local dashboard folds the available mailbox events and scores **open cases only**. Closed history is browsable but does not receive a fabricated current risk score. Mailbox events stay in memory; follow-up preferences are a small, separate local file. The shared copy excludes importance, review and snooze choices. It shows a read-only attention list with the default targets, plus the cases closed or reopened by hand.
 
 The optional Microsoft 365 low-code kit is independent: SharePoint schema/formatting, the scoring engine as an Office Script and a Power BI model. Its approval stages are not inferred from the local mailbox.
 
@@ -82,14 +91,14 @@ The optional Microsoft 365 low-code kit is independent: SharePoint schema/format
 | `7-LiveConnector/` | Connector, private-preference module, attention rules, ready-built live dashboard, snapshot template, start/stop scripts and fictional configuration/MIRP templates. |
 | `8-SharedDashboard/` | A fictional read-only snapshot example, not a real published dashboard. |
 | `tools/` | Portable dashboard builder, invented-fixture generator and the UI/engine/icon sources. |
-| `tests/` | Standard-library Python preference/API tests and Node event/rule/history tests. |
+| `tests/` | Standard-library Python preference/API and closure-notice tests, and Node event/rule/history tests. |
 | `docs/screenshots/` | Fictional-data screenshots. |
 
 Folders 4 and 5 from the original architecture are not distributed: there is no Teams-card sender or autonomous Copilot agent in this repository.
 
 ## Demo
 
-Open [`6-SampleData/customer-success-control-tower-demo.html`](6-SampleData/customer-success-control-tower-demo.html) in Edge or Chrome. The demo contains **12 invented cases across six fictional accounts**, including confirmed closures, pending/inferred closure and several follow-up scenarios. Demo review/snooze changes stay in memory and reset on reload; no Microsoft 365 sign-in or mailbox is accessed.
+Open [`6-SampleData/customer-success-control-tower-demo.html`](6-SampleData/customer-success-control-tower-demo.html) in Edge or Chrome. The demo contains **12 invented cases across six fictional accounts**, including confirmed closures, pending/inferred closure and several follow-up scenarios. Demo review, snooze and close/reopen changes stay in memory and reset on reload; no Microsoft 365 sign-in or mailbox is accessed.
 
 [`8-SharedDashboard/Customer-Success-Control-Tower-Example.html`](8-SharedDashboard/Customer-Success-Control-Tower-Example.html) shows the read-only sharing experience without private follow-up preferences. Its data is deliberately fixed in time.
 
@@ -112,7 +121,7 @@ Account risk combines case exposure, escalations, complaints/requests, CSM conce
 
 - Microsoft 365 access uses the signed-in user's own delegated permissions. The connector binds only to loopback; state-changing follow-up requests require the same origin and a custom header.
 - Real mailbox data, customer configuration, MIRP results, logs and generated shared dashboards do not belong in source control. Example templates are separate from ignored runtime files.
-- `attention-state.json` stores case identifiers, numeric targets, importance and episode review/snooze markers. It does not store e-mail content and is excluded from shared snapshots.
+- `attention-state.json` stores case identifiers, numeric targets, importance, episode review/snooze markers and the state and time of cases closed or reopened by hand. It does not store e-mail content. Only the manual case states are copied into shared snapshots.
 - Shared snapshots omit mailbox/case links, e-mail text and contact addresses by default. Granting file access is a separate user decision.
 - Status, next action and customer sentiment are inferred from the available e-mail. A reply that did not reach the user's mailbox cannot clear a wait. No OneSupport records are downloaded.
 - The calendar uses a fixed UTC offset and configured holidays; it does not implement daylight saving or guarantee a complete public-holiday calendar.

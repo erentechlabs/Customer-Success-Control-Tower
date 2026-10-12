@@ -7,6 +7,7 @@ case event and serves the dashboard plus a JSON snapshot on http://127.0.0.1:<po
 
 Sources
   * notifications@techsupport.microsoft.com  - case created, ownership, severity change, closed
+  * Microsoft Support system notices          - explicit body confirmation of closure/reopening
   * TrackingID# threads                        - engineer, customer and account-team correspondence
   * Critical Situation mails                   - CritSit engaged / disengaged
   * Calendar                                   - last and next customer meeting per account
@@ -19,8 +20,8 @@ settings.publish.folder (default ..\8-SharedDashboard, synced by OneDrive) for t
 folder is shared with. Any link to that file (OneDrive, Teams, e-mail) shows the latest copy.
 That copy never has mailbox links; e-mail text only if publish.includeEmailText is true, and the sender addresses of
 engineers and customer contacts only if publish.includeContactEmails is true.
-The attention center never sends messages or escalates cases. Only case identifiers, operational
-thresholds, importance and review/snooze markers are stored in
+The local attention center never sends messages or escalates cases. It stores only case numbers,
+follow-up importance, numeric thresholds and review/snooze episode markers in
 %LOCALAPPDATA%\CSCT\attention-state.json. These preferences are not included in shared snapshots.
 
 Usage: Start-ControlTower.cmd / Stop-ControlTower.cmd   start (opens the dashboard) / stop
@@ -50,7 +51,7 @@ from datetime import datetime, timedelta, timezone
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from csct_attention import AttentionConflict, AttentionStore
 
-VERSION = "1.5.0"
+VERSION = "1.6.0"
 HERE = os.path.dirname(os.path.abspath(__file__))
 CONFIG_PATH = os.path.join(HERE, "csct-live-config.json")
 TEMPLATE_PATH = os.path.join(HERE, "snapshot-template.html")
@@ -228,6 +229,11 @@ SUBMIT_RX = re.compile(r"successfully submitted to Microsoft Support|your (quest
 CRIT_ANY_RX = re.compile(r"Critical Situation|CritSit", re.I)
 CRIT_END_RX = re.compile(r"Severity Reduc|no longer actively|has now disengaged|disengag", re.I)
 ARCHIVE_RX = re.compile(r"\b(temporary\s+)?archiv(al|ed)\b", re.I)
+SUPPORT_LIFECYCLE_RX = re.compile(
+    r"(?:\b(?:this\s+(?:e-?mail|message)\s+is\s+to\s+confirm|we\s+(?:confirm|are\s+confirming))"
+    r"\s+(?:that\s+)?|(?:^|\n)\s*)"
+    r"(?:your|the)\s+(?:support\s+)?(?:case|service\s+request|support\s+request)\s+"
+    r"(?:has\s+been|was|is\s+now)\s+(closed|archived|re-?opened)\b", re.I)
 CLOSURE_RX = re.compile(
     r"was (my|our|a) (great |sincere |real )?pleasure (to |of )?(assist|work|help|support)|pleasure (working|assisting) (with )?you"
     r"|proceed(ing)? with (the )?(case )?(closure|closing|archiv)|will now be (archived|closed)|(is|has been) now (archived|closed)"
@@ -352,8 +358,32 @@ def detect_signals(text):
     return found
 
 
+def confirmed_support_lifecycle(text, ev):
+    match = SUPPORT_LIFECYCLE_RX.search(text[:3000])
+    if not match:
+        return False
+    kind = match.group(1).lower().replace("-", "")
+    ev["kind"] = kind
+    if kind in ("closed", "archived"):
+        ev["resolution"] = "Archived" if kind == "archived" else "Closed"
+    return True
+
+
+def notification_fields(text):
+    fields = {}
+    for key, name in (("Case Title", "caseTitle"), ("Service Request Title", "caseTitle"),
+                      ("Support Area Path", "areaPath"), ("Customer Name", "customerName"),
+                      ("Service Name", "serviceName")):
+        m = re.search(r"(?:^|\n)\s*\*?\s*" + key + r"\s*:\s*([^\n]+)", text)
+        if m:
+            fields[name] = m.group(1).strip()
+    return fields
+
+
 def notification_event(subject, text, ev):
-    if re.search(r"created with severity", subject, re.I):
+    if confirmed_support_lifecycle(text, ev):
+        pass
+    elif re.search(r"created with severity", subject, re.I):
         m = re.search(r"created with severity\s*:?\s*(\w)", subject, re.I)
         ev.update(kind="created", sev=m.group(1).upper() if m else None)
     elif re.search(r"Ownership accepted", subject, re.I):
@@ -371,12 +401,7 @@ def notification_event(subject, text, ev):
         ev.update(kind="archived", resolution="Archived")
     else:
         ev.update(kind="notification")
-    fields = {}
-    for key, name in (("Case Title", "caseTitle"), ("Support Area Path", "areaPath"), ("Customer Name", "customerName"), ("Service Name", "serviceName")):
-        m = re.search(r"(?:^|\n)\s*\*?\s*" + key + r"\s*:\s*([^\n]+)", text)
-        if m:
-            fields[name] = m.group(1).strip()
-    return fields
+    return notification_fields(text)
 
 
 def classify(m, text, raw_html, case_id, crit, team, me):
@@ -410,6 +435,8 @@ def classify(m, text, raw_html, case_id, crit, team, me):
             ev.update(role="system", kind="archived", actor="Microsoft Support", resolution="Archived")
         elif person(name).lower() in ("microsoft support", "microsoft", "") or SYSTEM_SENDER_RX.search(addr):
             ev.update(role="system", kind="notification", actor="Microsoft Support")
+            if confirmed_support_lifecycle(text, ev):
+                ev["fields"] = notification_fields(text)
         else:
             ev.update(role="engineer", kind="ms_update", actor=person(name) or addr, actorMail=addr)
             sig = signature_mail(text, name)
@@ -662,6 +689,12 @@ def publish(reason):
     body = sanitize(snap, bool(p.get("includeEmailText")), bool(p.get("includeContactEmails")))
     body.update(publishedAt=iso(now_utc()), publishedBy=(snap.get("me") or {}).get("name"),
                 emailTextIncluded=bool(p.get("includeEmailText")), contactEmailsIncluded=bool(p.get("includeContactEmails")))
+    # Cases closed or reopened by hand in the dashboard (case number, state and time only) so the shared copy matches.
+    try:
+        body["manual"] = ATTENTION.manual_states()
+    except (OSError, ValueError) as err:
+        body["manual"] = {}
+        log("manual case states could not be read for the shared copy: %s" % err)
     with open(TEMPLATE_PATH, encoding="utf-8") as f:
         template = f.read()
     if template.count(SNAP_PLACEHOLDER) != 1:

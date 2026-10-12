@@ -4,9 +4,13 @@
   const defaults = { urgentHours: 1, importantHours: 2, standardHours: 4, lowHours: 8, ownerHours: 2, pgHours: 8 };
   const time = (value) => { const ms = Date.parse(value || ""); return Number.isFinite(ms) ? ms : null; };
   const iso = (ms) => new Date(ms).toISOString();
+  // A wait is urgent at twice its threshold; waits for a reply or first contact are also urgent after one business day.
+  const DAY_CAPPED = { reply: 1, contact: 1, owner: 1, reopen: 1 };
+  const longAfter = (key, threshold, wall, dayHours) => (wall || !DAY_CAPPED[key] ? 2 * threshold : Math.min(2 * threshold, dayHours));
 
   function evaluate(cases, closed, preferences, now, clock) {
     const rules = Object.assign({}, defaults, preferences.rules);
+    const dayHours = Number.isFinite(clock.day) && clock.day > 0 ? clock.day : 9;
     const rows = [], coverage = [];
     cases.forEach((c) => {
       const saved = preferences.cases[c.CaseId] || {};
@@ -22,7 +26,7 @@
         if (ms === null || ms > now) { return; }
         const elapsed = wall ? (now - ms) / HOUR : clock.hours(ms, now);
         if (elapsed < threshold) { return; }
-        const level = wall || priority === "Critical" || elapsed >= 2 * threshold ? 2 : 1;
+        const level = wall || priority === "Critical" || elapsed >= longAfter(key, threshold, wall, dayHours) ? 2 : 1;
         reasons.push({ key, title, since: iso(ms), elapsed, threshold, clock: wall ? "24/7 hours" : "business hours",
           due: iso(wall ? ms + threshold * HOUR : clock.add(ms, threshold)), level, action });
       };
@@ -69,7 +73,7 @@
     });
     closed.forEach((c) => {
       const end = time(c.ClosureInferredOn || c.ClosedOn);
-      if (end === null || now - end > 7 * 86400000) { return; }
+      if (c.ClosureKind === "manual" || end === null || now - end > 7 * 86400000) { return; }
       if (c.Status === "Inactive" || c.Status === "Resolved" || !c.Engineer) {
         coverage.push({ caseId: c.CaseId, account: c.Account, title: c.Title,
           kind: c.Status === "Inactive" ? "Closure inferred" : c.Status === "Resolved" ? "Closure not confirmed" : "Closed, owner not visible",
@@ -82,7 +86,7 @@
     return { rows, coverage, active: rows.filter((r) => r.status === "Needs review"),
       snoozed: rows.filter((r) => r.status === "Snoozed"), reviewed: rows.filter((r) => r.status === "Reviewed") };
   }
-  const api = { defaults, evaluate };
+  const api = { defaults, evaluate, longAfter };
   if (typeof module !== "undefined" && module.exports) { module.exports = api; }
   else { root.CSCT_ATTENTION = api; }
 })(typeof globalThis === "undefined" ? this : globalThis);

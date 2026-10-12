@@ -16,7 +16,7 @@ class AttentionConflict(ValueError):
     pass
 
 
-def validate_marker(value, snooze=False):
+def validate_marker(value, snooze=False, incoming=True):
     keys = {"signature", "level", "until"} if snooze else {"signature", "level"}
     if not isinstance(value, dict) or set(value) != keys:
         raise ValueError("Invalid follow-up marker")
@@ -32,8 +32,29 @@ def validate_marker(value, snooze=False):
             raise ValueError("Invalid snooze time") from err
         if until.tzinfo is None:
             raise ValueError("Snooze time needs a time zone")
-        if until > datetime.now(timezone.utc) + timedelta(days=8):
+        # Only new input is held to the limit: a stored value must stay readable if the system clock later steps back.
+        if incoming and until > datetime.now(timezone.utc) + timedelta(days=8):
             raise ValueError("Snooze is limited to eight days")
+
+
+def validate_manual(value, incoming=True):
+    if not isinstance(value, dict) or set(value) != {"state", "at"}:
+        raise ValueError("Invalid case state")
+    if value["state"] not in ("closed", "open"):
+        raise ValueError("Unknown case state")
+    stamp = value["at"]
+    if not isinstance(stamp, str) or len(stamp) > 40:
+        raise ValueError("Invalid case state time")
+    try:
+        at = datetime.fromisoformat(stamp.replace("Z", "+00:00"))
+    except ValueError as err:
+        raise ValueError("Invalid case state time") from err
+    if at.tzinfo is None:
+        raise ValueError("Case state time needs a time zone")
+    if incoming and at > datetime.now(timezone.utc) + timedelta(minutes=5):
+        raise ValueError("Case state time is in the future")
+    if at < datetime(2020, 1, 1, tzinfo=timezone.utc):
+        raise ValueError("Case state time is too old")
 
 
 class AttentionStore:
@@ -45,14 +66,17 @@ class AttentionStore:
         if not os.path.exists(self.path):
             return {"revision": 0, "rules": dict(DEFAULT_RULES), "cases": {}}
         with open(self.path, encoding="utf-8") as f:
-            state = json.load(f)
+            try:
+                state = json.load(f)
+            except ValueError as err:
+                raise ValueError("Follow-up preferences are damaged; restore attention-state.json") from err
         if (not isinstance(state, dict) or type(state.get("revision")) is not int or state["revision"] < 0
                 or not isinstance(state.get("cases"), dict)
                 or not isinstance(state.get("rules"), dict) or set(state["rules"]) != set(DEFAULT_RULES)):
             raise ValueError("Follow-up preferences are damaged; restore attention-state.json")
         self._validate_rules(state["rules"])
         for case_id, record in state["cases"].items():
-            self._validate_record(case_id, record)
+            self._validate_record(case_id, record, incoming=False)
         return state
 
     @staticmethod
@@ -64,21 +88,26 @@ class AttentionStore:
                 raise ValueError("Follow-up thresholds must be between 0.5 and 48 hours")
 
     @staticmethod
-    def _validate_record(case_id, record):
+    def _validate_record(case_id, record, incoming=True):
         if not isinstance(case_id, str) or not re.fullmatch(r"\d{16}", case_id):
             raise ValueError("A sixteen-digit case number is required")
-        if not isinstance(record, dict) or set(record) - {"priority", "reviewed", "snooze"}:
+        if not isinstance(record, dict) or set(record) - {"priority", "reviewed", "snooze", "manual"}:
             raise ValueError("Invalid follow-up preferences")
         if "priority" in record and record["priority"] not in PRIORITIES:
             raise ValueError("Unknown follow-up importance")
         if "reviewed" in record:
             validate_marker(record["reviewed"])
         if "snooze" in record:
-            validate_marker(record["snooze"], snooze=True)
+            validate_marker(record["snooze"], snooze=True, incoming=incoming)
+        if "manual" in record:
+            validate_manual(record["manual"], incoming=incoming)
 
     def read(self):
         with self.lock:
             return self._read()
+
+    def manual_states(self):
+        return {case_id: dict(record["manual"]) for case_id, record in self.read()["cases"].items() if "manual" in record}
 
     def update(self, body):
         if not isinstance(body, dict) or type(body.get("revision")) is not int:
@@ -99,10 +128,12 @@ class AttentionStore:
                 raise AttentionConflict("Preferences changed in another tab. Reload and try again.")
             if "rules" in body:
                 state["rules"] = body["rules"]
-            else:
+            elif body["record"]:
                 if len(state["cases"]) >= 2000 and body["caseId"] not in state["cases"]:
                     raise ValueError("Follow-up preferences have reached the 2000-case limit")
                 state["cases"][body["caseId"]] = body["record"]
+            else:
+                state["cases"].pop(body["caseId"], None)
             state["revision"] += 1
             folder = os.path.dirname(self.path)
             os.makedirs(folder, exist_ok=True)

@@ -2,16 +2,22 @@
   // ---- Shared snapshot: published by the connector on a schedule (every 10 minutes on business days by default), read-only ----
   // Also renders inside OneDrive/SharePoint's sandboxed preview: no network, storage, pop-ups or navigation here.
   function liveAction() { /* a snapshot has no live connection */ }
-  function attentionSave(update, notice) {
-    if (MODE !== "demo") { return; }
+  // Demo preferences live in memory only. Closing or reopening a case moves it between lists, so the sample history is folded again.
+  function attentionSave(update, notice, onDone) {
+    if (MODE !== "demo") { return false; }
+    const before = JSON.stringify(manualStates());
     if (update.rules) { AT.preferences.rules = update.rules; }
-    else { AT.preferences.cases[update.caseId] = update.record; }
+    else if (Object.keys(update.record).length) { AT.preferences.cases[update.caseId] = update.record; }
+    else { delete AT.preferences.cases[update.caseId]; }
     AT.preferences.revision++; AT.notice = notice; AT.error = "";
+    if (JSON.stringify(manualStates()) !== before) { ingest(runLive(DEMO, Date.parse(DEMO.sampleAsOf), manualStates())); }
+    if (onDone) { onDone(true); }
     render(false);
     if (drawer.classList.contains("on") && drawer.dataset.attentionCase) {
       if (drawer.dataset.view === "followup") { openFollowUp(drawer.dataset.attentionCase); }
       else { openCase(drawer.dataset.attentionCase); }
     }
+    return true;
   }
   // Nearest scheduled publish time before (dir -1, at or before) or after (dir 1) `now`, on Istanbul business days.
   function slotNear(slots, now, dir) {
@@ -31,7 +37,8 @@
   function bootData() {
     window.csctFindings = findings;
     const pub = Date.parse(SNAP.publishedAt || SNAP.generatedAt);
-    ingest(runLive(SNAP, pub));
+    ingest(runLive(SNAP, pub, manualStates()));
+    AT.ready = true;
     const slots = D.publishSlots, now = Date.now();
     const due = slotNear(slots, now, -1), next = slotNear(slots, now, 1);
     const at = (ms) => new Date(ms).toISOString();
