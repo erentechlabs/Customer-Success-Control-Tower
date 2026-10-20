@@ -31,7 +31,7 @@ def main():
     port = int(config["settings"]["port"])
     head = read(UI / "head.html").replace("@@STYLE@@", read(UI / "design.css"))
     pages = ["app2-pages.js", "app4-closed.js", "app3-pages.js"]
-    shared = ["app1-core.js", "app1b-fold.js", "app1d-attention.js"]
+    shared = ["app1-core.js", "app1b-fold.js", "app1d-attention.js", "app1e-advisory.js"]
     live = "".join(read(UI / name) for name in shared + ["app1c-live.js"] + pages)
     static = "".join(read(UI / name) for name in shared + ["app1c-snapshot.js"] + pages)
     used = sorted(set(re.findall(r'"([a-z0-9_]+_(?:regular|filled))"', live + static)))

@@ -1,0 +1,26 @@
+{
+  "version": 1,
+  "demo": false,
+  "senderEmail": "csam-owner@example.com",
+  "senderId": "11111111-1111-4111-8111-111111111111",
+  "tenantId": "33333333-3333-4333-8333-333333333333",
+  "approverIds": [
+    "11111111-1111-4111-8111-111111111111",
+    "22222222-2222-4222-8222-222222222222"
+  ],
+  "trustedForwarders": ["reviewer@example.com"],
+  "trustedAlertSenders": ["advisoryalerts@example.com"],
+  "maxEvidenceAgeHours": { "mapping": 720, "contact": 720 },
+  "maxSourceAgeMinutes": 5,
+  "approvalLifetimeHours": 24,
+  "publishEnabled": false,
+  "liveEnabled": false,
+  "outboundConsentRecorded": false,
+  "port": 8788,
+  "approvalProvider": {
+    "siteId": "",
+    "listId": "",
+    "restrictedAccessConfirmed": false,
+    "privacyReviewConfirmed": false
+  }
+}

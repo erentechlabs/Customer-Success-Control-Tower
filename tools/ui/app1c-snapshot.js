@@ -39,6 +39,8 @@
     const pub = Date.parse(SNAP.publishedAt || SNAP.generatedAt);
     ingest(runLive(SNAP, pub, manualStates()));
     AT.ready = true;
+    if (SNAP.advisory) { ADV.data = SNAP.advisory; ADV.ready = true; }
+    ADV.loaded = true;
     const slots = D.publishSlots, now = Date.now();
     const due = slotNear(slots, now, -1), next = slotNear(slots, now, 1);
     const at = (ms) => new Date(ms).toISOString();

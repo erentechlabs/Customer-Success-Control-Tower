@@ -7,7 +7,7 @@
   const onLocalhost = () => location.protocol === "http:" && (location.hostname === "127.0.0.1" || location.hostname === "localhost");
   const syncing = () => !!LV.sync && (LV.sync.state === "syncing" || LV.sync.state === "starting");
   const manualActive = () => Date.now() < LV.manualUntil;
-  const editingPage = () => !!document.activeElement.closest("[data-attention-form], [data-account-search], [data-queue-filter], [data-attention-priority], [data-history-filter], .command-menu[open]");
+  const editingPage = () => !!document.activeElement.closest("[data-attention-form], [data-account-search], [data-queue-filter], [data-attention-priority], [data-history-filter], [data-advisory-mapping-form], [data-advisory-edit-form], [data-advisory-resolve-form], .command-menu[open]");
   async function attentionLoad() {
     try {
       const response = await fetch("/api/attention", { cache: "no-store" });
@@ -44,6 +44,44 @@
       else { openCase(drawer.dataset.attentionCase); }
     }
     return saved;
+  }
+  async function advisoryLoad() {
+    try {
+      const response = await fetch("/api/advisory/state", { cache: "no-store" });
+      const data = await response.json();
+      if (!response.ok) { throw new Error(data.error || "HTTP " + response.status); }
+      if (data.available === false) { ADV.ready = false; ADV.error = data.reason || "Advisory review is not configured on this PC."; }
+      else { ADV.data = data; ADV.ready = true; ADV.error = ""; }
+    } catch (err) { ADV.ready = false; ADV.error = err.message || String(err); }
+    finally { ADV.loaded = true; }
+  }
+  async function advisoryPost(path, body, actionName) {
+    if (ADV.busy) { return null; }
+    ADV.busy = true; ADV.busyAction = actionName || null; ADV.formError = "";
+    render(false); // show the busy/disabled state immediately, before the network call starts
+    let result = null;
+    try {
+      const response = await fetch(path, { method: "POST", headers: { "Content-Type": "application/json", "X-CSCT": "advisory" }, body: JSON.stringify(body || {}) });
+      const data = await response.json();
+      if (!response.ok) { throw new Error(data.error || "HTTP " + response.status); }
+      ADV.notice = data.message || ""; result = data;
+      await advisoryLoad();
+    } catch (err) { ADV.formError = err.message || String(err); }
+    finally { ADV.busy = false; ADV.busyAction = null; }
+    render(false);
+    return result;
+  }
+  async function advisoryAction(action) {
+    if (ADV.busy) { return; }
+    if (action === "reload") {
+      ADV.busy = true; ADV.busyAction = "reload"; ADV.notice = ""; ADV.formError = "";
+      render(false); // show the busy/disabled state immediately, before the reload request starts
+      await advisoryLoad();
+      ADV.busy = false; ADV.busyAction = null;
+      render(false);
+      return;
+    }
+    if (action === "import") { await advisoryPost("/api/advisory/mailbox/import", {}, "import"); }
   }
   const RING = '<svg class="pring" viewBox="0 0 32 32" aria-hidden="true"><circle cx="16" cy="16" r="13" stroke-dasharray="58 100"/></svg>';
   const stateBox = (icon, title, text, cmds, phase, cls) => '<div class="state' + (cls ? " " + cls : "") + '">' + icon + "<h2>" + H(title) + "</h2><p>" + H(text) + "</p>" +
@@ -159,11 +197,15 @@
     if (!onLocalhost()) { liveConnect(); return; }
     liveLoading(); liveStatus(); livePoll();
     attentionLoad().then(() => { liveApply(); liveStatus(); });
+    advisoryLoad().then(() => render(false));
     setInterval(() => { if (LV.snap && !document.hidden) { liveApply(); liveStatus(); } }, 60000);
     document.addEventListener("visibilitychange", () => { if (!document.hidden) { if (LV.snap) { liveApply(); } livePoll(); } });
     setInterval(() => {
       if (!document.hidden && !AT.busy && !editingPage()) {
         attentionLoad().then(() => { liveApply(); liveStatus(); });
+      }
+      if (!document.hidden && !ADV.busy && !editingPage()) {
+        advisoryLoad().then(() => render(false));
       }
     }, 60000);
   }

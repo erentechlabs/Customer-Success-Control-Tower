@@ -122,6 +122,7 @@
     { id: "queue", label: "Cases", icon: "clipboard_task_regular" },
     { id: "closed", label: "Cases", icon: "checkmark_circle_regular", hidden: true },
     { id: "attention", label: "Attention center", icon: "clock_regular" },
+    { id: "advisory", label: "Advisory review", icon: "mail_regular" },
     { id: "esc", label: "Escalations", icon: "arrow_circle_up_regular" },
     { id: "voice", label: "Customer voice", icon: "person_feedback_regular" },
     { id: "acct", label: "Account 360", icon: "building_multiple_regular" },
@@ -132,7 +133,8 @@
     queue: [S.red, "critical", S.red + " Red cases"],
     esc: [S.candidates, "attention", S.candidates + " escalation candidates"],
     voice: [S.overdueSignals, "caution", S.overdueSignals + " customer signals past due"],
-    attention: AT.ready ? [attentionModel().active.length, "caution", MODE === "snapshot" ? "Published cases waiting for an update" : "Cases needing a new follow-up review"] : [0]
+    attention: AT.ready ? [attentionModel().active.length, "caution", MODE === "snapshot" ? "Published cases waiting for an update" : "Cases needing a new follow-up review"] : [0],
+    advisory: ADV.ready ? [advisoryQueueRows().filter((r) => r.needsAttention).length, "caution", "Advisory notices needing mapping, review or approval"] : [0]
   } : {});
   const state = { tab: "tower", filter: "all", q: "", account: null, pane: "auto", packId: null,
     closedStatus: "Closed", closedAccount: "", closedPeriod: "all" };

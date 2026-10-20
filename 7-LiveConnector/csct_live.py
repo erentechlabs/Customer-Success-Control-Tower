@@ -23,6 +23,12 @@ engineers and customer contacts only if publish.includeContactEmails is true.
 The local attention center never sends messages or escalates cases. It stores only case numbers,
 follow-up importance, numeric thresholds and review/snooze episode markers in
 %LOCALAPPDATA%\CSCT\attention-state.json. These preferences are not included in shared snapshots.
+Advisory review (optional; needs advisory-settings.json next to this file, see SETUP.md) is a
+private queue that maps vendor "Action Required" notices to the right customer and team, strips internal-only
+text and requires an explicit human approval (proven only by Microsoft Graph's server-generated identity on a
+native Microsoft List item) before any customer-facing draft is created; nothing is ever sent automatically.
+It is excluded from the shared snapshot unless settings.publish.includeAdvisory is true, and even then only a
+status summary (no recipients, subject or body) unless settings.publish.includeAdvisoryContent is also true.
 
 Usage: Start-ControlTower.cmd / Stop-ControlTower.cmd   start (opens the dashboard) / stop
        Auto-start: "Customer Success Control Tower" shortcut in the Windows Startup folder (shell:startup)
@@ -65,6 +71,7 @@ SELECT = "id,subject,from,toRecipients,ccRecipients,receivedDateTime,sentDateTim
 DEFAULT_PUBLISH = {
     "enabled": True, "everyMinutes": 10, "from": "09:00", "to": "18:00", "tzOffsetHours": 3, "folder": "..\\8-SharedDashboard",
     "fileName": "Customer-Success-Control-Tower-Daily.html", "includeEmailText": False, "includeContactEmails": False,
+    "includeAdvisory": False, "includeAdvisoryContent": False,
 }
 DEFAULT_SETTINGS = {
     "port": 8787, "pollSeconds": 60, "fullSyncMinutes": 60, "lookbackDays": 120,
@@ -257,11 +264,37 @@ ANGRY_RX = re.compile(r"\b(unacceptable|not acceptable|immediately|extremely (di
 SYSTEM_SENDER_RX = re.compile(r"^(snwprod|noreply|no-reply|donotreply|do-not-reply|mailer-daemon|postmaster)@|@(itsm|servicenow)\.", re.I)
 # Teams chat items synced into the mailbox (sender 19:...@thread.v2, usually as the display name) are internal chat, not case correspondence.
 CHAT_SENDER_RX = re.compile(r"@thread\.(v2|skype)$|^19:", re.I)
+# Advisory review's own automated mail (support-ticket lifecycle mirrors, incident/advisory alerts, MIRP alert
+# confirmations) duplicates information already tracked elsewhere and must stay out of Cases, Attention
+# center, Escalations, Customer voice, Account 360 and Manager brief entirely - it belongs only in the
+# dedicated Advisory review tab, which reads the mailbox independently via advisory_sources.py. Without this,
+# a vendor ticket-status mirror could match a real case's TrackingID and get filed into that case's
+# timeline as if it were a genuine engineer update. The sender list is never hardcoded here: it comes only
+# from advisory-settings.json's own trustedAlertSenders (the same list the Advisory workflow already trusts),
+# so this file never needs to name any specific vendor or address.
+
+
+def _load_advisory_system_senders():
+    try:
+        with open(os.path.join(HERE, "advisory-settings.json"), "r", encoding="utf-8") as f:
+            senders = json.load(f).get("trustedAlertSenders") or []
+    except (OSError, ValueError):
+        senders = []
+    addresses = [re.escape(s.strip()) for s in senders if isinstance(s, str) and s.strip()]
+    # No configured senders -> a pattern that can never match, so the filter is a safe no-op.
+    return re.compile(r"^(?:%s)$" % "|".join(addresses) if addresses else r"(?!)", re.I)
 
 
 def is_chat_item(m):
     frm = m.get("from") or {}
     return bool(CHAT_SENDER_RX.search(addr_of(frm)) or CHAT_SENDER_RX.search(name_of(frm)))
+
+
+def is_advisory_system_mail(m):
+    return bool(ADVISORY_SENDER_RX.search(addr_of(m.get("from") or {})))
+
+
+ADVISORY_SENDER_RX = _load_advisory_system_senders()
 SIGNAL_RULES = [
     ("Escalation Request", "Escalation", "Asked to escalate",
      r"\b(please|kindly|we (would like|want|need|have) to|i (would like|want|need) to|can (you|we)|could you)\b[^.!?\n]{0,60}\bescalat(e|ion|ing)\b"
@@ -571,7 +604,7 @@ def build_snapshot():
     cutoff = iso(now_utc() - timedelta(days=int(settings["lookbackDays"])))
     first, known = {}, set()
     for m in messages:
-        if is_chat_item(m):
+        if is_chat_item(m) or is_advisory_system_mail(m):
             continue
         cid, crit = find_case(m.get("subject"), texts[m["id"]][0], set())
         if cid:
@@ -581,7 +614,7 @@ def build_snapshot():
     for m in messages:
         if (m.get("receivedDateTime") or m.get("sentDateTime") or "") < cutoff:
             continue
-        if is_chat_item(m):
+        if is_chat_item(m) or is_advisory_system_mail(m):
             continue
         text, raw = texts[m["id"]]
         cid, crit = first.get(m["id"]) or find_case(m.get("subject"), text, known)
@@ -678,6 +711,41 @@ def sanitize(snap, include_text, include_mail=False):
     return out
 
 
+def sanitize_advisory(model, include_content):
+    """Privacy-gated Advisory summary for the shared snapshot: status/team/event only unless
+    settings.publish.includeAdvisoryContent is explicitly true (then also customer name, subject,
+    recipients and body). Arrays keep the live model's shape so the dashboard's pageAdvisory() can
+    render both live and published data with the same code."""
+    def row(d):
+        out = {
+            "id": d.get("id"), "status": d.get("status"), "teamId": d.get("teamId"), "service": d.get("service"),
+            "eventId": d.get("eventId"), "blockers": list(d.get("blockers") or []),
+            "resolvable": False, "editable": False, "publishable": False,
+            "approvedBy": d.get("approvedBy"), "approvalUrl": None,
+            "customerName": None, "subject": None, "body": None, "to": [], "cc": [],
+            # Operator-only routing assessment: computed labels, not raw e-mail content, so these
+            # stay visible regardless of includeAdvisoryContent (same bucket as status/service/eventId).
+            "confidence": d.get("confidence"), "confidenceReason": d.get("confidenceReason"),
+            "decision": d.get("decision"), "evidence": None,
+        }
+        if include_content:
+            evidence = d.get("evidence") or {}
+            out.update(customerName=d.get("customerName"), subject=d.get("subject"), body=d.get("body"),
+                       to=list(d.get("to") or []), cc=list(d.get("cc") or []),
+                       # Only the two fields the dashboard reads for pending-mapping hints; the rest of
+                       # the live evidence block (customerSafeSource, scopeVerification, sourceHash) is
+                       # body-shaped content and must not round-trip into the published copy.
+                       evidence={"environmentIds": evidence.get("environmentIds"),
+                                 "displayAliases": evidence.get("displayAliases")})
+        return out
+    return {
+        "liveEnabled": model.get("liveEnabled"), "publishEnabled": model.get("publishEnabled"),
+        "drafts": [row(d) for d in model.get("drafts") or []],
+        "mappings": [], "deploymentBlockers": list(model.get("deploymentBlockers") or []),
+        "mappingRevision": model.get("mappingRevision"), "workerError": None,
+    }
+
+
 def publish(reason):
     settings, _ = load_config()
     p = settings["publish"]
@@ -695,6 +763,13 @@ def publish(reason):
     except (OSError, ValueError) as err:
         body["manual"] = {}
         log("manual case states could not be read for the shared copy: %s" % err)
+    # Advisory review is private by default: nothing is published unless the operator explicitly opts in,
+    # and even then only a status summary unless includeAdvisoryContent is also set.
+    if p.get("includeAdvisory") and ADVISORY is not None:
+        try:
+            body["advisory"] = sanitize_advisory(ADVISORY.model(), bool(p.get("includeAdvisoryContent")))
+        except Exception as err:
+            log("advisory summary could not be read for the shared copy: %s" % err)
     with open(TEMPLATE_PATH, encoding="utf-8") as f:
         template = f.read()
     if template.count(SNAP_PLACEHOLDER) != 1:
@@ -929,6 +1004,13 @@ class Handler(BaseHTTPRequestHandler):
                 if want == str(STATE.version):
                     return self._send(200, b'{"version":%d,"unchanged":true,"sync":' % STATE.version + status + b"}")
                 return self._send(200, b'{"sync":' + status + b"," + STATE.snapshot[1:])
+        if url.path == "/api/advisory/state":
+            if ADVISORY is None:
+                return self._send(200, json.dumps({"available": False, "reason": ADVISORY_POLICY_ERROR or "Advisory review is not configured."}))
+            try:
+                return self._send(200, json.dumps(ADVISORY.model(), ensure_ascii=False))
+            except (AdvisoryWorkflowError, AdvisoryStoreError, OSError) as err:
+                return self._send(500, json.dumps({"error": str(err)}))
         return self._send(404, '{"error":"not found"}')
 
     def do_POST(self):
@@ -957,6 +1039,36 @@ class Handler(BaseHTTPRequestHandler):
         if url.path == "/api/sync" and origin in allowed:
             STATE.wake.set()
             return self._send(202, '{"ok":true}')
+        if url.path.startswith("/api/advisory/"):
+            if ADVISORY is None:
+                return self._send(409, json.dumps({"error": ADVISORY_POLICY_ERROR or "Advisory review is not configured."}))
+            if origin not in allowed or self.headers.get("X-CSCT") != "advisory":
+                return self._send(403, '{"error":"forbidden"}')
+            sub = url.path[len("/api/advisory/"):]
+            operations = {
+                "mailbox/import": lambda body: ADVISORY.import_mailbox(),
+                "mapping": ADVISORY.mapping, "notice/resolve": ADVISORY.resolve,
+                "draft/edit": ADVISORY.edit, "draft/publish": ADVISORY.publish,
+            }
+            if ADVISORY.policy.get("demo"):
+                operations["demo/approve"] = ADVISORY.demo_approve
+            if sub not in operations:
+                return self._send(404, '{"error":"not found"}')
+            try:
+                length = int(self.headers.get("Content-Length") or "0")
+                if not 0 <= length <= 100000:
+                    raise ValueError("Request size is invalid.")
+                body = json.loads(self.rfile.read(length).decode("utf-8")) if length else {}
+                if not isinstance(body, dict):
+                    raise ValueError("Request must be an object.")
+                result = operations[sub](body)
+            except AdvisoryConflictError as err:
+                return self._send(409, json.dumps({"error": str(err)}))
+            except (AdvisoryWorkflowError, AdvisoryPolicyError, AdvisoryGraphError, ValueError, KeyError, TypeError, UnicodeError) as err:
+                return self._send(400, json.dumps({"error": str(err)}))
+            except AdvisoryStoreError as err:
+                return self._send(500, json.dumps({"error": str(err)}))
+            return self._send(200, json.dumps(result, ensure_ascii=False))
         if url.path == "/api/publish" and self.headers.get("X-CSCT") == "publish":
             try:
                 path, when = publish("on request")
@@ -1012,7 +1124,49 @@ def print_summary(snap):
         print("     ", snap["cases"][cid]["accountSource"])
 
 
+# ----------------------------------------------------------------------------- Advisory review (optional sidecar)
+# A private, local review queue for vendor "Action Required" notices: maps them to the correct customer and
+# team, strips internal-only text, and requires an explicit human approval (proven only by Microsoft
+# Graph's server-generated lastModifiedBy identity on a native Microsoft List item) before any
+# customer-facing draft is created. Every live/publish/send gate defaults to off in advisory-settings.json;
+# a missing or invalid settings file simply disables this tab without affecting the rest of Control Tower.
+# Imported here (not at module top) because advisory_graph imports workiq_exe/NO_WINDOW back from this module.
+ADVISORY = None
+ADVISORY_POLICY_ERROR = None
+try:
+    from advisory_policy import PolicyError as AdvisoryPolicyError, load_policy as load_advisory_policy
+    from advisory_review import ReviewApp as AdvisoryReviewApp
+    from advisory_workflow import ConflictError as AdvisoryConflictError, WorkflowError as AdvisoryWorkflowError
+    from advisory_protected_store import StoreError as AdvisoryStoreError
+    from advisory_graph import GraphRequestError as AdvisoryGraphError
+    ADVISORY_IMPORT_ERROR = None
+except Exception as _advisory_import_err:  # pragma: no cover - optional module missing
+    ADVISORY_IMPORT_ERROR = str(_advisory_import_err)
+
+
+def init_advisory():
+    """Build the Advisory review sidecar if advisory-settings.json is present and valid. Any problem
+    (missing modules, missing or invalid settings) disables just this tab, never Control Tower itself."""
+    global ADVISORY, ADVISORY_POLICY_ERROR
+    if ADVISORY_IMPORT_ERROR:
+        ADVISORY_POLICY_ERROR = "Advisory modules could not be loaded: %s" % ADVISORY_IMPORT_ERROR
+        return
+    path = os.path.join(HERE, "advisory-settings.json")
+    if not os.path.exists(path):
+        ADVISORY_POLICY_ERROR = "advisory-settings.json was not found; the Advisory tab is disabled."
+        return
+    try:
+        policy = load_advisory_policy(path)
+        ADVISORY = AdvisoryReviewApp(policy)
+        ADVISORY_POLICY_ERROR = None
+    except Exception as err:
+        ADVISORY = None
+        ADVISORY_POLICY_ERROR = "Advisory configuration is invalid: %s" % err
+        log("advisory init failed: %s" % err)
+
+
 def main():
+    init_advisory()
     settings, _ = load_config()
     port = int(settings["port"])
     if "--once" in sys.argv:
@@ -1048,6 +1202,9 @@ def main():
         sys.exit("Port %d is in use by another program. Change settings.port in csct-live-config.json." % port)
     log("connector %s listening on 127.0.0.1:%d" % (VERSION, port))
     threading.Thread(target=sync_loop, daemon=True).start()
+    if ADVISORY is not None and ADVISORY.policy.get("liveEnabled"):
+        threading.Thread(target=ADVISORY.worker, daemon=True).start()
+        log("advisory worker started")
     if "--open" in sys.argv:
         threading.Timer(1.0, lambda: webbrowser.open("http://127.0.0.1:%d/" % port)).start()
     try:

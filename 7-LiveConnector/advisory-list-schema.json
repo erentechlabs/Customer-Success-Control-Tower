@@ -1,0 +1,17 @@
+{
+  "displayName": "Advisory Customer Communication Review",
+  "list": { "template": "genericList" },
+  "columns": [
+    { "name": "DraftId", "displayName": "Draft ID", "indexed": true, "enforceUniqueValues": true, "text": {} },
+    { "name": "Revision", "displayName": "Text revision", "number": { "decimalPlaces": "none" } },
+    { "name": "PayloadDigest", "displayName": "Approval digest (SHA-256)", "text": {} },
+    { "name": "CustomerName", "displayName": "Customer", "text": {} },
+    { "name": "RecipientsJson", "displayName": "Full recipient list", "text": { "allowMultipleLines": true, "textType": "plain" } },
+    { "name": "MessageSubject", "displayName": "Subject to send", "text": {} },
+    { "name": "MessageBody", "displayName": "Full text to send", "text": { "allowMultipleLines": true, "textType": "plain" } },
+    { "name": "SourceCustomerText", "displayName": "Source customer text (internal sections excluded)", "text": { "allowMultipleLines": true, "textType": "plain" } },
+    { "name": "ScopeJson", "displayName": "Verified environment and source evidence", "text": { "allowMultipleLines": true, "textType": "plain" } },
+    { "name": "ApprovalStatus", "displayName": "Approval decision", "choice": { "allowTextEntry": false, "displayAs": "dropDownMenu", "choices": ["Awaiting review", "Approved", "Rejected", "Dispatching"] } },
+    { "name": "ExpiresAt", "displayName": "Approval expiry time", "dateTime": { "format": "dateTime" } }
+  ]
+}

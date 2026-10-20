@@ -1,0 +1,222 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="icon" href="data:,">
+<title>Control Tower | Advisory Approval Queue</title>
+<script>
+  (() => {
+    const param = new URLSearchParams(window.location.search).get("scoutTheme");
+    const theme =
+      param || (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+    document.documentElement.setAttribute("data-theme", theme);
+  })();
+</script>
+<style>
+:root {
+  color-scheme: light;
+  --cp-bg: #f7f4ef;
+  --cp-bg-elevated: #fcfbf8;
+  --cp-surface: #ffffff;
+  --cp-surface-soft: #f5f5f5;
+  --cp-border: #dedede;
+  --cp-border-strong: #919191;
+  --cp-text: #242424;
+  --cp-text-muted: #5c5c5c;
+  --cp-text-soft: #6f6f6f;
+  --cp-accent: #b11f4b;
+  --cp-accent-hover: #9a1a41;
+  --cp-accent-soft: rgba(177, 31, 75, 0.08);
+  --cp-accent-fg: #ffffff;
+  --cp-success: #16a34a;
+  --cp-danger: #dc2626;
+  --cp-warning: #f59e0b;
+  --cp-link: #0078d4;
+  --cp-shadow: 0 18px 48px rgba(0, 0, 0, 0.12);
+  --cp-overlay: rgba(255, 255, 255, 0.8);
+  --cp-panel: rgba(255, 255, 255, 0.86);
+  --cp-panel-strong: rgba(255, 255, 255, 0.96);
+  --cp-sheen: rgba(255, 255, 255, 0.55);
+  --cp-highlight: rgba(177, 31, 75, 0.12);
+}
+html[data-theme="dark"] {
+  color-scheme: dark;
+  --cp-bg: #3d3b3a;
+  --cp-bg-elevated: #343231;
+  --cp-surface: #292929;
+  --cp-surface-soft: #2e2e2e;
+  --cp-border: #474747;
+  --cp-border-strong: #5f5f5f;
+  --cp-text: #dedede;
+  --cp-text-muted: #919191;
+  --cp-text-soft: #b0b0b0;
+  --cp-accent: #fd8ea1;
+  --cp-accent-hover: #fb7b91;
+  --cp-accent-soft: rgba(253, 142, 161, 0.14);
+  --cp-accent-fg: #1a1a1a;
+  --cp-success: #4ade80;
+  --cp-danger: #f87171;
+  --cp-warning: #fbbf24;
+  --cp-link: #4da6ff;
+  --cp-shadow: 0 18px 48px rgba(0, 0, 0, 0.32);
+  --cp-overlay: rgba(41, 41, 41, 0.88);
+  --cp-panel: rgba(41, 41, 41, 0.72);
+  --cp-panel-strong: rgba(41, 41, 41, 0.96);
+  --cp-sheen: rgba(255, 255, 255, 0.04);
+  --cp-highlight: rgba(253, 142, 161, 0.12);
+}
+*{box-sizing:border-box}body{margin:0;background:var(--cp-bg);color:var(--cp-text);font:14px "Segoe UI",Aptos,Calibri,-apple-system,BlinkMacSystemFont,sans-serif}
+button,input,textarea,select{font:inherit}button,a{touch-action:manipulation}button{cursor:pointer}button:disabled{cursor:not-allowed;opacity:.5}
+a{color:var(--cp-link)}button,input,textarea,select{border:1px solid var(--cp-border);border-radius:.625rem;background:var(--cp-surface);color:var(--cp-text)}
+button{min-height:36px;padding:7px 12px}button:hover:not(:disabled){background:var(--cp-surface-soft)}button.primary{background:var(--cp-accent);border-color:var(--cp-accent);color:var(--cp-accent-fg)}button.primary:hover:not(:disabled){background:var(--cp-accent-hover)}
+input,textarea,select{padding:8px 10px;width:100%;outline-offset:3px}textarea{resize:vertical;line-height:1.55}
+input[type=checkbox]{width:auto;accent-color:var(--cp-accent)}h1,h2,h3,p{margin:0}h1{font-size:24px;font-weight:600}h2{font-size:18px;font-weight:600}h3{font-size:14px;font-weight:600}
+.appbar{height:56px;padding:0 24px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--cp-border);background:var(--cp-bg-elevated)}
+.brand{font-weight:600}.brand span{color:var(--cp-text-muted);font-weight:400}.pill{display:inline-flex;align-items:center;padding:4px 9px;border:1px solid var(--cp-border);border-radius:20px;font-size:12px;background:var(--cp-surface)}
+.pill.demo{border-color:var(--cp-warning);color:var(--cp-text)}.muted{color:var(--cp-text-muted)}.tiny{font-size:12px}.layout{display:grid;grid-template-columns:208px minmax(0,1fr);min-height:calc(100vh - 56px)}
+.sidebar{padding:20px 12px;border-right:1px solid var(--cp-border);background:var(--cp-bg-elevated)}.sidebar h3{padding:0 10px 16px}.sidebar button,.sidebar a{display:block;width:100%;margin-bottom:4px;text-align:left;border:0;background:transparent;text-decoration:none;color:var(--cp-text);padding:10px}
+.sidebar button.active{background:var(--cp-accent-soft);color:var(--cp-accent);font-weight:600}.side-note{margin:24px 10px;line-height:1.5;font-size:12px;color:var(--cp-text-muted)}
+main{padding:24px;min-width:0}.heading{display:flex;justify-content:space-between;align-items:flex-start;gap:24px;margin-bottom:20px}.heading p{margin-top:7px;max-width:720px;line-height:1.5}
+.actions{display:flex;gap:8px;flex-wrap:wrap}.banner{display:flex;gap:16px;justify-content:space-between;background:var(--cp-surface);border:1px solid var(--cp-border);border-radius:10px;padding:12px 16px;margin-bottom:16px;line-height:1.5}
+.banner strong{display:block}.stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-bottom:20px}.stat{background:var(--cp-surface);border:1px solid var(--cp-border);border-radius:16px;padding:14px 16px}
+.stat b{display:block;font-size:26px;font-weight:600;margin-bottom:3px}.panel{background:var(--cp-surface);border:1px solid var(--cp-border);border-radius:16px;overflow:hidden}
+.panel-head{padding:16px;display:flex;justify-content:space-between;align-items:center;gap:12px;border-bottom:1px solid var(--cp-border)}.filters{display:flex;gap:6px;flex-wrap:wrap}.filters button{font-size:12px;min-height:30px;padding:4px 10px}.filters button.selected{color:var(--cp-accent);background:var(--cp-accent-soft);border-color:var(--cp-accent)}
+.queue-layout{display:grid;grid-template-columns:minmax(480px,1fr) minmax(330px,410px);gap:16px;align-items:start}
+table{border-collapse:collapse;width:100%;font-size:13px}th{text-align:left;color:var(--cp-text-muted);font-weight:400;font-size:12px;padding:12px 16px;background:var(--cp-surface-soft)}td{padding:13px 16px;border-bottom:1px solid var(--cp-border);vertical-align:top}tr:last-child td{border-bottom:0}tr.pick{background:var(--cp-accent-soft)}tr[data-id]{cursor:pointer}td strong{display:block;margin-bottom:5px}.status{font-size:11px;font-weight:600;color:var(--cp-text-muted)}.status.ready{color:var(--cp-accent)}.status.sent{color:var(--cp-success)}.status.blocked{color:var(--cp-danger)}
+.empty{padding:36px 20px;text-align:center;color:var(--cp-text-muted);line-height:1.6}.details{padding:16px}.details section{margin-bottom:18px}.details p,.details li{line-height:1.55}.details ul{padding-left:18px;margin:8px 0}.detail-grid{display:grid;grid-template-columns:90px 1fr;gap:8px;font-size:12px;margin-top:12px}.detail-grid dt{color:var(--cp-text-muted)}.detail-grid dd{margin:0;overflow-wrap:anywhere}
+.draft-body{white-space:pre-wrap;overflow-wrap:anywhere;max-height:280px;overflow:auto;line-height:1.6;background:var(--cp-surface-soft);padding:12px;border-radius:10px;font-size:13px;margin-top:8px}
+.rule{border-top:1px solid var(--cp-border);margin:16px 0}.alert-error{color:var(--cp-danger)}.message{padding:10px 14px;margin:0 0 16px;border:1px solid var(--cp-border);border-radius:10px;line-height:1.5}.message:empty{display:none}
+.mapping-layout{display:grid;grid-template-columns:minmax(0,1fr) 410px;gap:16px}.form{padding:16px}.field{display:block;margin-bottom:12px}.field span{display:block;font-size:12px;margin-bottom:5px;color:var(--cp-text-muted)}.field-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}.check{display:flex;gap:8px;align-items:flex-start;line-height:1.45;font-size:12px;margin:12px 0}
+dialog{border:1px solid var(--cp-border);border-radius:16px;background:var(--cp-surface);color:var(--cp-text);padding:0;width:min(800px,calc(100vw - 40px));max-height:90vh}dialog::backdrop{background:var(--cp-overlay)}
+.dialog-head{padding:18px 20px;border-bottom:1px solid var(--cp-border);display:flex;align-items:center;justify-content:space-between}.dialog-body{padding:20px}.dialog-foot{padding:12px 20px;border-top:1px solid var(--cp-border);display:flex;justify-content:flex-end;gap:8px}.hidden{display:none!important}.mono{font-family:Consolas,"Courier New",Courier,monospace}
+.deployment{padding:16px}.deployment li{margin:8px 0;line-height:1.55}.deployment p{line-height:1.6;margin:8px 0}
+@media(max-width:1200px){.queue-layout{grid-template-columns:minmax(0,1fr)}.mapping-layout{grid-template-columns:minmax(0,1fr)}}
+@media(max-width:760px){.layout{grid-template-columns:1fr}.sidebar{display:flex;gap:4px;padding:8px;overflow:auto;border-right:0}.sidebar h3,.side-note,.sidebar a{display:none}.sidebar button{width:auto;white-space:nowrap;margin:0}.stats{grid-template-columns:1fr 1fr}main{padding:16px}.heading{flex-direction:column}.appbar{padding:0 16px}td,th{padding:10px}.field-row{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<header class="appbar"><div class="brand">Control Tower <span>/ Advisory</span></div><span id="mode" class="pill">Loading</span></header>
+<div class="layout">
+<nav class="sidebar" aria-label="Advisory navigation"><h3>Customer communication</h3>
+<button type="button" class="active" data-page="queue">Approval queue</button>
+<button type="button" data-page="mapping">Environment mappings</button>
+<button type="button" data-page="settings">Connection &amp; security</button>
+<a href="http://127.0.0.1:8787/">Back to Control Tower</a>
+<p class="side-note">Nothing is sent until customer identity, the responsible team and the exact text to be sent are all verified.</p></nav>
+<main>
+<div class="heading"><div><h1>Advisory approval queue</h1><p class="muted">A version-locked approval workflow that routes Action Required notices to the correct customer and workload owner.</p></div><div class="actions"><button id="import" type="button">Fetch notices</button><button id="refresh" type="button">Refresh</button></div></div>
+<div id="message" class="message" role="status" aria-live="polite"></div>
+<div id="banner" class="banner"><div><strong>Loading send status</strong><span class="muted"></span></div></div>
+<section id="queue-page">
+<div class="stats"><div class="stat"><b id="count-review">0</b><span class="muted tiny">Awaiting review</span></div><div class="stat"><b id="count-blocked">0</b><span class="muted tiny">Missing mapping / content</span></div><div class="stat"><b id="count-approved">0</b><span class="muted tiny">Approved / awaiting send</span></div><div class="stat"><b id="count-sent">0</b><span class="muted tiny">Sent</span></div></div>
+<div class="queue-layout">
+<section class="panel"><div class="panel-head"><h2>Notices</h2><div class="filters" aria-label="Status filter"><button type="button" data-filter="all" class="selected">All</button><button type="button" data-filter="review">Review</button><button type="button" data-filter="blocked">Blocked</button><button type="button" data-filter="sent">Sent</button></div></div><div id="queue"></div></section>
+<aside class="panel"><div class="panel-head"><h2>Draft detail</h2><span class="tiny muted">Full recipients and text</span></div><div id="details" class="details"><p class="muted">Select a notice to review.</p></div></aside>
+</div></section>
+<section id="mapping-page" class="hidden"><div class="mapping-layout"><section class="panel"><div class="panel-head"><h2>Verified environments</h2></div><div id="mappings"></div></section>
+<section class="panel"><div class="panel-head"><h2>Environment &amp; responsible team</h2></div><form id="mapping-form" class="form">
+<label class="field"><span>Exact tenant / subscription GUID</span><input name="environmentId" required placeholder="00000000-0000-0000-0000-000000000000"></label>
+<label class="field"><span>Environment type</span><select name="environmentType"><option value="subscription">Azure subscription</option><option value="tenant">Tenant</option></select></label>
+<div class="field-row"><label class="field"><span>Customer ID</span><input name="customerId" required></label><label class="field"><span>Customer name</span><input name="customerName" required></label></div>
+<label class="field"><span>Workload / responsible team</span><input name="teamId" required placeholder="azure-ocr"></label>
+<label class="field"><span>Service (exact name as it appears in the source)</span><input name="service" required></label>
+<label class="field"><span>Verified To recipients</span><input name="to" required placeholder="azure-team@example.com"></label>
+<label class="field"><span>CC recipients (optional)</span><input name="cc"></label>
+<label class="field"><span>Approved customer email domains</span><input name="domains" required placeholder="example.com"></label>
+<label class="field"><span>Verification source</span><input name="evidence" required placeholder="MIRP / authoritative Azure record / customer confirmation"></label>
+<label class="check"><input name="verified" type="checkbox" required><span>I have verified the identity, customer ownership, and the recipients' responsibility for this workload.</span></label>
+<button type="submit" class="primary">Save mapping</button><p class="muted tiny" style="margin-top:12px">Name similarity is not proof of a correct automatic match. Live data is encrypted with per-user Windows protection.</p>
+</form></section></div></section>
+<section id="settings-page" class="hidden"><div class="panel"><div class="panel-head"><h2>Live connection requirements</h2></div><div id="deployment" class="deployment"></div></div></section>
+</main></div>
+<dialog id="editor"><div class="dialog-head"><h2>Customer-facing text</h2><button type="button" data-close="editor">Close</button></div><form id="edit-form"><div class="dialog-body">
+<label class="field"><span>Subject</span><input id="edit-subject" required maxlength="240"></label>
+<label class="field"><span>Exact text to send</span><textarea id="edit-body" rows="13" required maxlength="18000"></textarea></label>
+<label class="check"><input id="edit-verified" type="checkbox"><span>I have checked this text for sharing with the customer, for accuracy, and for the dates/versions/actions that appear in the source. It contains no internal information or internal links.</span></label>
+<p class="muted tiny">Every change invalidates the previous approval. The internal section of the original message is never sent to the customer.</p></div><div class="dialog-foot"><button type="button" data-close="editor">Cancel</button><button type="submit" class="primary">Save new version</button></div></form></dialog>
+<dialog id="publish"><div class="dialog-head"><h2>Submit for approval</h2><button type="button" data-close="publish">Close</button></div><div class="dialog-body"><p class="muted">This screen contains customer information. The recipient list and exact text below will be submitted for review on the access-restricted Microsoft Lists approval item.</p><div id="publish-preview"></div><p class="alert-error tiny" style="margin-top:16px">Once a shared draft is approved, only the same recipients and the same text may be sent.</p></div><div class="dialog-foot"><button type="button" data-close="publish">Cancel</button><button id="publish-confirm" class="primary" type="button">Submit this version for approval</button></div></dialog>
+<dialog id="resolve"><div class="dialog-head"><h2>Exact environment scope of the event</h2><button type="button" data-close="resolve">Close</button></div><form id="resolve-form"><div class="dialog-body">
+<p class="muted">Do not guess from the name. Verify from the authoritative Advisory/Azure/MIRP record which environments in the affected portfolio this notice actually concerns.</p>
+<label class="field"><span>Select verified environments (multiple selection allowed)</span><select id="resolve-environments" multiple size="7" required></select></label>
+<label class="field"><span>Verification source / note</span><input id="resolve-evidence" required maxlength="350"></label>
+<label class="check"><input id="resolve-verified" type="checkbox" required><span>I have verified by identity the complete relevant scope of environments affected by this event; I am not treating a partial mail list as the full list.</span></label>
+</div><div class="dialog-foot"><button type="button" data-close="resolve">Cancel</button><button type="submit" class="primary">Verify this source version's scope</button></div></form></dialog>
+<script>
+"use strict";
+const CSRF = "@@ADVISORY_CSRF@@";
+let model = null, selectedId = null, activeFilter = "all", pageName = "queue", editing = null, publishing = null, resolving = null;
+const $ = id => document.getElementById(id);
+const node = (tag, text, cls) => { const n = document.createElement(tag); if (text !== undefined) n.textContent = text; if (cls) n.className = cls; return n; };
+const statusText = {
+  awaiting_review:"Awaiting review", ready_for_approval:"Ready for approval", awaiting_approval:"Awaiting approval", approved:"Approved",
+  needs_mapping:"Identity mapping required", needs_contacts:"Responsible team missing",
+  needs_review:"Review required", needs_customer_content:"No customer text yet",
+  blocked:"Send blocked", dispatching:"Send in progress", submitted:"Submitted to Outlook",
+  sent:"Sent", delivery_unknown:"Delivery result unknown", rejected:"Rejected"
+};
+const group = d => ["sent","submitted"].includes(d.status) ? "sent" : ["approved","dispatching"].includes(d.status) ? "approved" : ["awaiting_review","ready_for_approval","awaiting_approval"].includes(d.status) ? "review" : "blocked";
+async function api(path, data) {
+  const response = await fetch(path, data === undefined ? {cache:"no-store"} : {
+    method:"POST", headers:{"Content-Type":"application/json","X-CSCT-Advisory":CSRF}, body:JSON.stringify(data)
+  });
+  const result = await response.json();
+  if (!response.ok) throw new Error(result.error || "The operation could not be completed.");
+  return result;
+}
+function announce(text, error=false){ $("message").textContent=text; $("message").classList.toggle("alert-error",error); }
+async function act(path,data){ try{const r=await api(path,data);await load();announce(r.message || "Operation completed.");return r;}catch(e){announce(e.message,true);return null;} }
+async function load(){try{model=await api("/api/state");render();}catch(e){announce(e.message,true);}}
+function current(){return model?.drafts.find(d=>d.id===selectedId);}
+function button(text, handler, disabled=false, primary=false){const b=node("button",text,primary?"primary":"");b.type="button";b.disabled=disabled;b.addEventListener("click",handler);return b;}
+function recipientLine(d){return "To: "+(d.to||[]).join("; ")+(d.cc?.length?"\nCC: "+d.cc.join("; "):"");}
+function preview(d){const root=node("div");root.append(node("pre",recipientLine(d),"tiny mono"),node("h3",d.subject||"Draft not ready yet"),node("div",d.body||"Waiting for identity, contact and customer-text verification.","draft-body"));return root;}
+function render(){
+  $("mode").textContent=model.demo?"Fictional demo · no real sending":"Private local panel";
+  $("mode").className="pill"+(model.demo?" demo":"");
+  $("banner").replaceChildren();
+  const content=node("div");content.append(node("strong",model.demo?"Demo: approval and sending are simulated; no real email is sent.":model.liveEnabled?"Live sending only runs after a verified Microsoft 365 approval.":"Live customer sending is off."));
+  content.append(node("span",model.demo?"Identities, customers and recipients are fictional.":"Sender: "+model.senderEmail+". The real approval is verified against the approver's identity on Microsoft Lists.","muted"));
+  $("banner").append(content);$("import").disabled=model.demo;
+  for(const type of ["review","blocked","approved","sent"])$("count-"+type).textContent=model.drafts.filter(d=>group(d)===type).length;
+  renderQueue();renderDetails();renderMappings();renderSettings();
+  if(model.workerError)announce("The background worker stopped: "+model.workerError.error,true);
+}
+function renderQueue(){
+  const root=$("queue");root.replaceChildren();const rows=model.drafts.filter(d=>activeFilter==="all"||group(d)===activeFilter);
+  if(!rows.length){root.append(node("div","No records in this view. Notices with unresolved identity are never sent automatically.","empty"));return;}
+  const table=node("table"),thead=node("thead"),header=node("tr");for(const text of ["Event / customer","Workload","Status"])header.append(node("th",text));thead.append(header);table.append(thead);
+  const tbody=node("tbody");for(const d of rows){const tr=node("tr");tr.dataset.id=d.id;tr.tabIndex=0;if(d.id===selectedId)tr.className="pick";const one=node("td");one.append(node("strong",d.customerName||"Customer not verified"),node("span",d.eventId||d.id,"tiny muted"));const two=node("td",d.teamId||d.service||"Awaiting mapping");const three=node("td");three.append(node("span",statusText[d.status]||d.status,"status "+(group(d)==="review"?"ready":group(d))));tr.append(one,two,three);const pick=()=>{selectedId=d.id;renderQueue();renderDetails();};tr.addEventListener("click",pick);tr.addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();pick();}});tbody.append(tr);}table.append(tbody);root.append(table);
+}
+function renderDetails(){
+  const root=$("details"),d=current();root.replaceChildren();if(!d){root.append(node("p","Select a notice to review.","muted"));return;}
+  root.append(node("h3",d.customerName||"Customer mapping pending"));
+  if(d.previousDeliveries)root.append(node("p","There have been "+d.previousDeliveries+" prior send attempts for this customer/event. The same exact text and recipients will not be sent again.","tiny muted"));
+  const dl=node("dl",undefined,"detail-grid");for(const [label,value]of [["Workload",d.teamId||d.service||"—"],["Status",statusText[d.status]||d.status],["Version",String(d.revision||0)],["Approved by",d.approvedBy||"Not yet approved"]]){dl.append(node("dt",label),node("dd",value));}root.append(dl);
+  if(d.blockers?.length){const section=node("section");section.append(node("h3","Reasons blocking send"));const ul=node("ul");for(const reason of d.blockers)ul.append(node("li",reason));section.append(ul);root.append(section);}
+  root.append(preview(d));
+  const evidence=node("details");evidence.append(node("summary","Identity and source evidence"));const pre=node("pre",JSON.stringify(d.evidence||{},null,2),"draft-body tiny mono");evidence.append(pre);root.append(evidence);
+  root.append(node("div",undefined,"rule"));const actions=node("div",undefined,"actions");
+  actions.append(button("Edit text",()=>{const fresh=current();editing={id:fresh.id,revision:fresh.revision};$("edit-subject").value=fresh.subject||"";$("edit-body").value=fresh.body||"";$("edit-verified").checked=!!fresh.contentVerified;$("editor").showModal();},!d.editable));
+  actions.append(button("Submit for approval",()=>{const fresh=current();publishing={id:fresh.id,revision:fresh.revision,digest:fresh.digest};$("publish-preview").replaceChildren(preview(fresh));$("publish").showModal();},!d.publishable||(!model.demo&&!model.publishEnabled),true));
+  if(d.resolvable){actions.append(button("Verify environment scope",()=>{resolving={noticeId:d.noticeId,sourceHash:d.sourceHash};const select=$("resolve-environments");select.replaceChildren();for(const m of model.mappings){const option=node("option",m.customerName+" · "+m.teamId+" · "+m.environmentId);option.value=JSON.stringify({type:m.environmentType,id:m.environmentId});select.append(option);}$("resolve-evidence").value="";$("resolve-verified").checked=false;$("resolve").showModal();},!model.mappings.length));}
+  if(model.demo){actions.append(button("Simulate approval",()=>act("/api/demo/approve",{id:d.id,revision:d.revision,digest:d.digest}),!d.publishable||group(d)==="sent"));}
+  if(d.approvalUrl){const a=node("a","Open Microsoft Lists approval item");a.href=d.approvalUrl;a.target="_blank";a.rel="noopener noreferrer";actions.append(a);}
+  root.append(actions);root.append(node("p",model.demo?"The demo send only creates a fictional delivery record.":"Typing an approver's name does not grant authority. A changed text or recipient list requires re-approval.","muted tiny"));
+}
+function renderMappings(){const root=$("mappings");root.replaceChildren();if(!model.mappings.length){root.append(node("div","No verified environment yet. A customer is never guessed from a subscription name.","empty"));return;}for(const m of model.mappings){const section=node("section",undefined,"details");section.append(node("h3",m.customerName+" · "+m.teamId),node("p",m.environmentId,"tiny mono muted"),node("p",(m.to||[]).join("; "),"tiny"),node("p",m.evidence||"No verification source","tiny muted"));root.append(section);}}
+function renderSettings(){const root=$("deployment");root.replaceChildren();root.append(node("h3","Sending and identity boundaries"));root.append(node("p","This local screen cannot verify the approver's remote identity. The live approval is read from the server-verified user identity on the access-restricted Microsoft Lists record."));const ul=node("ul");for(const reason of model.deploymentBlockers||[])ul.append(node("li",reason));root.append(ul);root.append(node("p","Live sending is only processed on business days, 09:00-18:00 local time. Approvals outside that window wait."));root.append(node("p","Live state is encrypted per-user with Windows DPAPI. Email and subscription details are never written to the shared snapshot file."));root.append(node("p","If a delivery result is unknown, it is never retried automatically; it requires reconciliation against the Outlook delivery record."));}
+$("refresh").addEventListener("click",()=>load());
+$("import").addEventListener("click",()=>act("/api/mailbox/import",{}));
+document.querySelectorAll("[data-page]").forEach(b=>b.addEventListener("click",()=>{pageName=b.dataset.page;for(const p of ["queue","mapping","settings"])$(p+"-page").classList.toggle("hidden",p!==pageName);document.querySelectorAll("[data-page]").forEach(n=>n.classList.toggle("active",n===b));}));
+document.querySelectorAll("[data-filter]").forEach(b=>b.addEventListener("click",()=>{activeFilter=b.dataset.filter;document.querySelectorAll("[data-filter]").forEach(n=>n.classList.toggle("selected",n===b));renderQueue();}));
+document.querySelectorAll("[data-close]").forEach(b=>b.addEventListener("click",()=>$(b.dataset.close).close()));
+$("edit-form").addEventListener("submit",async e=>{e.preventDefault();if(!editing)return;if(await act("/api/draft/edit",{...editing,subject:$("edit-subject").value,body:$("edit-body").value,contentVerified:$("edit-verified").checked}))$("editor").close();});
+$("publish-confirm").addEventListener("click",async()=>{if(!publishing)return;if(await act("/api/draft/publish",publishing))$("publish").close();});
+$("resolve-form").addEventListener("submit",async e=>{e.preventDefault();if(!resolving)return;const ids=Array.from($("resolve-environments").selectedOptions,option=>JSON.parse(option.value));const unique=Array.from(new Map(ids.map(id=>[id.type+":"+id.id,id])).values());if(await act("/api/notice/resolve",{...resolving,environmentIds:unique,evidence:$("resolve-evidence").value,verified:$("resolve-verified").checked}))$("resolve").close();});
+$("mapping-form").addEventListener("submit",async e=>{e.preventDefault();const f=new FormData(e.target),split=k=>String(f.get(k)||"").split(/[;,]/).map(s=>s.trim()).filter(Boolean);await act("/api/mapping",{mappingRevision:model.mappingRevision,environmentId:f.get("environmentId"),environmentType:f.get("environmentType"),customerId:f.get("customerId"),customerName:f.get("customerName"),teamId:f.get("teamId"),service:f.get("service"),to:split("to"),cc:split("cc"),domains:split("domains"),evidence:f.get("evidence"),verified:f.get("verified")==="on"});});
+load();
+setInterval(load,45000);
+</script>
+</body>
+</html>

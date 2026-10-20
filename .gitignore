@@ -7,8 +7,10 @@ __pycache__/
 *.log
 7-LiveConnector/csct-live-config.json
 7-LiveConnector/mirp-latest.json
+7-LiveConnector/advisory-settings.json
 8-SharedDashboard/Customer-Success-Control-Tower-Daily.html
 attention-state.json
+advisory-review.dpapi
 connector.lock
 
 # OS and editor files

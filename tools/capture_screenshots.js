@@ -29,6 +29,7 @@ async (page) => {
     await page.locator('button[data-case-state="open"]').click(); await page.waitForTimeout(400); await page.keyboard.press("Escape");
     await go("attention"); await capture("attention-center");
     await page.locator(".watch-case").first().click(); await capture("follow-up-detail"); await page.keyboard.press("Escape");
+    await go("advisory"); await capture("advisory-review");
     await go("acct"); await capture("account-360");
     await go("voice"); await capture("customer-voice");
     await go("esc"); await capture("escalations");

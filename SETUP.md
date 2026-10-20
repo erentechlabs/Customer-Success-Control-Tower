@@ -65,6 +65,7 @@ The Python snippets call `python`. If only the Python launcher is installed, use
 | Unified case e-mail in your mailbox | The dashboard is built from two sources: the case notifications from `notifications@techsupport.microsoft.com`, and the TrackingID case threads you are copied on. | Step 1 |
 | OneDrive for Business (optional) | Needed only to share a read-only copy. | Step 7 |
 | Engage Center access (optional) | Needed only to track MIRP confirmations. | Step 8 |
+| A Microsoft-internal, access-restricted Microsoft Lists site (optional) | Needed only for Advisory review. | Step 10 |
 
 ## Step 1: Check the prerequisites
 
@@ -442,6 +443,66 @@ Folder F = <CSCT>\7-LiveConnector.
 6. Write ONE concise message in <LANGUAGE>, without emojis. First line: "MIRP weekly update, <date>: <N> accounts, <C> confirmed, <P> pending, <E> exception." using the "Accounts:" line of the script output. Then "Changes this week:" with one line per change (account, who confirmed, date), or "No changes."; then "Still pending:" with the account names on one line. Add only when present: "Review due within 30 days:", "Exceptions:" (only when the review is due within 45 days), "Workspaces not in the account map:" with your proposal, and "Problems:". If accounts are still pending, offer to draft reminder e-mails, but do not draft or send anything without my approval. Last line: "Dashboard and shared copy updated (<local time>)." or what failed.
 ```
 
+## Step 10: Advisory review (optional)
+
+Resolves vendor "Action Required" advisory notices (for example a service-health or retirement
+mailer) to the exact customer and responsible team by tenant/subscription GUID, never by display
+name; strips internal-only text; and requires an explicit human approval, proven only by Microsoft
+Graph's server-generated identity on a native Microsoft Lists item, before any customer-facing draft
+is created. Nothing is ever sent automatically.
+
+1. **Enable the tab.** Copy `advisory-settings.example.json` to `advisory-settings.json` in
+   `<CSCT>\7-LiveConnector` and fill in real values (see the table below). If the file is missing or
+   invalid, the "Advisory review" tab in Control Tower shows why and the rest of the dashboard is
+   unaffected.
+2. **Create a Microsoft-internal, access-restricted Microsoft Lists list** using
+   `advisory-list-schema.json` as the column definitions. List creation can inherit site access;
+   restrict that access before publishing any customer information to it.
+3. **Allow only the intended reviewers and the service operator to access the list.** Confirm
+   corporate confidentiality, classification and usage requirements. Customer-facing section
+   headings inside a source notice do not declassify the rest of the message.
+4. **Configure `approvalProvider.siteId` and `approvalProvider.listId`** in `advisory-settings.json`
+   once access is actually restricted and reviewed.
+5. **Resolve exact customer environments and workload contacts from authorized records**, not from
+   subscription or display names, using the mapping form in the Advisory review tab. Record the
+   verification source; evidence expires (`maxEvidenceAgeHours`) rather than being trusted
+   indefinitely.
+6. **Review each customer-safe draft** - recipients, subject, body, and the dates/versions/links it
+   carries - before explicitly submitting it for approval (`publishEnabled`).
+7. **A designated reviewer approves or rejects** the exact draft on the restricted Microsoft Lists
+   item. An editable name/e-mail field on the item is not proof of identity: the connector verifies
+   Microsoft's own server-generated `lastModifiedBy.user.id` against the configured `approverIds`.
+8. **Enable live sending (`liveEnabled`, `outboundConsentRecorded`)** only once you are ready for the
+   connector to actually create and send the approved Outlook draft. The configured
+   `senderEmail`/`senderId` must match the signed-in account.
+
+Settings reference (`advisory-settings.json`):
+
+| Key | Purpose |
+| --- | --- |
+| `demo` | When `true`, runs a self-contained fictional queue; keep `false` for real customer data. |
+| `senderEmail`, `senderId`, `tenantId` | The signed-in account the connector sends from and verifies approvals against. |
+| `approverIds` | Entra object IDs allowed to approve (matched against Graph's `lastModifiedBy.user.id`, never a typed name). |
+| `trustedAlertSenders` | Sender addresses treated as vendor advisory notices; also keeps this mail out of real case timelines elsewhere in Control Tower. |
+| `trustedForwarders` | Internal addresses allowed to forward a notice without breaking its "Action Required" classification. |
+| `approvalProvider.siteId` / `.listId` | The restricted Microsoft Lists item created in step 2. |
+| `publishEnabled`, `liveEnabled`, `outboundConsentRecorded` | Three independent, off-by-default gates; see steps 6-8. |
+| `port` | Localhost port for the optional standalone preview described below. |
+
+A minimal, fully fictional `advisory-settings.example.json` is included; copy and edit it rather than
+inventing the shape by hand.
+
+Nothing about Advisory review is included in the shared snapshot unless you explicitly set
+`settings.publish.includeAdvisory` to `true` in `csct-live-config.json` (status/team/event counts
+only), and separately `settings.publish.includeAdvisoryContent` (adds customer name, subject,
+recipients and body). Both default to `false`.
+
+`Start-AdvisoryReview.cmd` (or `python advisory_review.py --demo`) is an optional, separate standalone
+preview on `http://127.0.0.1:8788/` with fictional customers, identities and messages; it is not
+required for normal use and is not linked from the dashboard - the "Advisory review" tab inside
+Control Tower itself, served by `csct_live.py` together with every other page, is the primary way to
+use this feature.
+
 ## Final check
 
 | What | How to check |
@@ -599,7 +660,7 @@ Cases that cannot be mapped are still shown, under the customer name from the no
 
 ## Microsoft 365 kit (optional)
 
-The repository also contains the risk engine as a low-code Microsoft 365 kit for portfolio reporting. It is independent of the live connector and is not needed for Steps 1 to 9.
+The repository also contains the risk engine as a low-code Microsoft 365 kit for portfolio reporting. It is independent of the live connector and is not needed for Steps 1 to 10.
 
 > **Scout:** set this up only if the user asks for it.
 

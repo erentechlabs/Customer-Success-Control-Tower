@@ -337,7 +337,7 @@
   }
 
   // ---- Render loop ----
-  const RENDER = { tower: pageTower, queue: pageQueue, closed: pageClosed, attention: pageAttention, esc: pageEsc, voice: pageVoice, acct: pageAcct, brief: pageBrief, model: pageModel };
+  const RENDER = { tower: pageTower, queue: pageQueue, closed: pageClosed, attention: pageAttention, advisory: pageAdvisory, esc: pageEsc, voice: pageVoice, acct: pageAcct, brief: pageBrief, model: pageModel };
   let ro = null, roRaf = 0;
   function render(animate) {
     renderNav();
@@ -523,6 +523,8 @@
   if (DEMO) {
     AT.ready = true;
     ingest(runLive(DEMO, Date.parse(DEMO.sampleAsOf), manualStates()));
+    if (DEMO.advisory) { ADV.data = DEMO.advisory; ADV.ready = true; }
+    ADV.loaded = true;
     window.csctFindings = findings;
     $("asof").textContent = "As of " + fmtT(D.input.asOf);
     $("asof").title = "Engine run " + fmtT(D.input.asOf) + " (Europe/Istanbul)";

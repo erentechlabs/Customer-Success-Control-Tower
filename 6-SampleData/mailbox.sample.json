@@ -545,5 +545,83 @@
       "ball": "Customer",
       "preview": "Please validate the sample configuration."
     }
-  ]
+  ],
+  "advisory": {
+    "liveEnabled": false,
+    "publishEnabled": true,
+    "mappings": [],
+    "deploymentBlockers": [
+      "The site/list identifiers for the access-restricted Microsoft Lists approval item are not configured."
+    ],
+    "mappingRevision": 3,
+    "workerError": null,
+    "drafts": [
+      {
+        "id": "fictional-draft-sent-01",
+        "status": "sent",
+        "teamId": "azure-ocr",
+        "service": "Azure Document Intelligence",
+        "eventId": "7XQ2-F19",
+        "blockers": [],
+        "resolvable": false,
+        "editable": false,
+        "publishable": false,
+        "approvedBy": "a designated reviewer",
+        "approvalUrl": null,
+        "customerName": "Fabrikam",
+        "subject": "Action required: Azure Document Intelligence \u2013 Fabrikam",
+        "body": "Hello,\n\nBelow is the customer notice regarding the Azure Document Intelligence service.\n\nReview the sample API migration for this fictional OCR environment before December 31, 2030.\nUpdate the sample application, retrain the models, and test before production.\nPublic product documentation: https://learn.microsoft.com/azure/ai-services/document-intelligence/\n\nBest regards",
+        "to": ["azure-ocr@fabrikam.example"],
+        "cc": [],
+        "confidence": "high",
+        "confidenceReason": "Message was sent and verified in Sent Items.",
+        "decision": "Already routed",
+        "evidence": null
+      },
+      {
+        "id": "fictional-draft-mapping-02",
+        "status": "needs_mapping",
+        "teamId": null,
+        "service": "Azure Kubernetes Service",
+        "eventId": "4KX9-A02",
+        "blockers": ["An event identity was found but the full tenant/subscription GUID scope is not yet verified."],
+        "resolvable": true,
+        "editable": false,
+        "publishable": false,
+        "approvedBy": null,
+        "approvalUrl": null,
+        "customerName": null,
+        "subject": null,
+        "body": null,
+        "to": [],
+        "cc": [],
+        "confidence": "low",
+        "confidenceReason": "An event identity was found but the full tenant/subscription GUID scope is not yet verified.",
+        "decision": "Manual review required",
+        "evidence": null
+      },
+      {
+        "id": "fictional-draft-review-03",
+        "status": "ready_for_approval",
+        "teamId": "sql-managed-instance",
+        "service": "Azure SQL Managed Instance",
+        "eventId": "9QW1-C55",
+        "blockers": [],
+        "resolvable": false,
+        "editable": true,
+        "publishable": true,
+        "approvedBy": null,
+        "approvalUrl": null,
+        "customerName": "Woodgrove Bank",
+        "subject": "Action required: Azure SQL Managed Instance \u2013 Woodgrove Bank",
+        "body": "Hello,\n\nBelow is the customer notice regarding the Azure SQL Managed Instance service.\n\nA fictional maintenance window is scheduled for this sample environment on November 15, 2030. No customer action is required; the service remains available throughout.\nPublic product documentation: https://learn.microsoft.com/azure/azure-sql/managed-instance/\n\nBest regards",
+        "to": ["dba-team@woodgrovebank.example"],
+        "cc": ["csm@example.com"],
+        "confidence": "high",
+        "confidenceReason": "Customer, team, exact scope and customer-facing text are all verified; ready to be submitted to the approval queue.",
+        "decision": "Suitable for automatic routing",
+        "evidence": null
+      }
+    ]
+  }
 }

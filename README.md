@@ -13,6 +13,7 @@ A calm, explainable portfolio view for **Microsoft Unified support cases**. It b
 | **Control tower** | Four essential indicators, cases needing a closer look, account health and recent activity. Trends are available without dominating the page. |
 | **Cases** | Open and Closed views, status, next step and activity. Closed records retain people, dates, outcome and the complete available timeline. A case can be closed or reopened by hand when the mailbox does not show it. |
 | **Attention center** | A quiet list of cases waiting for a reply, ownership or progress. Select a case to review it; importance, snooze and draft options stay in the detail view. |
+| **Advisory review** (optional) | A version-locked approval queue that resolves vendor "Action Required" advisory notices to the exact customer and team by tenant/subscription GUID, strips internal-only text, and requires an explicit human approval on a restricted Microsoft Lists item before any customer-facing draft is created. Off by default; see [SETUP.md](SETUP.md#step-10-advisory-review-optional). |
 | **Account 360** | Account risk, MIRP confirmation/expiry, contacts and commercial context, open cases and clickable case history. |
 | **Customer voice** | Complaints, escalation requests and additional asks detected in English/Turkish case threads. |
 | **Escalations** | Explainable candidates and recorded critical situations. Proposed actions are not submitted automatically. |
@@ -59,8 +60,10 @@ All images below were generated from the independently invented mailbox fixture.
 | ![Customer voice](docs/screenshots/customer-voice.png) | ![Escalations](docs/screenshots/escalations.png) |
 | **Manager brief** | **Settings & rules** |
 | ![Manager brief](docs/screenshots/manager-brief.png) | ![Settings and rules](docs/screenshots/risk-model.png) |
-| **Dark theme** | **Narrow window** |
-| ![Dark theme](docs/screenshots/dark-theme.png) | ![Narrow account view](docs/screenshots/account-360-narrow.png) |
+| **Advisory review** (optional) | **Dark theme** |
+| ![Advisory review](docs/screenshots/advisory-review.png) | ![Dark theme](docs/screenshots/dark-theme.png) |
+| **Narrow window** | |
+| ![Narrow account view](docs/screenshots/account-360-narrow.png) | |
 
 ## Architecture
 
@@ -88,7 +91,7 @@ The optional Microsoft 365 low-code kit is independent: SharePoint schema/format
 | `2-PowerAutomate/` | The risk engine as an Office Script. |
 | `3-PowerBI/` | Power Query, DAX model/measure definitions and a report theme. |
 | `6-SampleData/` | Self-contained interactive demo, fictional mailbox fixture and engine input/output examples. |
-| `7-LiveConnector/` | Connector, private-preference module, attention rules, ready-built live dashboard, snapshot template, start/stop scripts and fictional configuration/MIRP templates. |
+| `7-LiveConnector/` | Connector, private-preference module, attention rules, optional Advisory review engine and standalone preview, ready-built live dashboard, snapshot template, start/stop scripts and fictional configuration/MIRP/Advisory templates. |
 | `8-SharedDashboard/` | A fictional read-only snapshot example, not a real published dashboard. |
 | `tools/` | Portable dashboard builder, invented-fixture generator and the UI/engine/icon sources. |
 | `tests/` | Standard-library Python preference/API and closure-notice tests, and Node event/rule/history tests. |
@@ -122,6 +125,7 @@ Account risk combines case exposure, escalations, complaints/requests, CSM conce
 - Microsoft 365 access uses the signed-in user's own delegated permissions. The connector binds only to loopback; state-changing follow-up requests require the same origin and a custom header.
 - Real mailbox data, customer configuration, MIRP results, logs and generated shared dashboards do not belong in source control. Example templates are separate from ignored runtime files.
 - `attention-state.json` stores case identifiers, numeric targets, importance, episode review/snooze markers and the state and time of cases closed or reopened by hand. It does not store e-mail content. Only the manual case states are copied into shared snapshots.
+- Advisory review is off by default and needs its own `advisory-settings.json`; its local state is encrypted with per-user Windows DPAPI, approval is verified against Microsoft Graph's own server-generated identity (never a typed name), and nothing about it reaches a shared snapshot unless separately opted in. See [SETUP.md](SETUP.md#step-10-advisory-review-optional).
 - Shared snapshots omit mailbox/case links, e-mail text and contact addresses by default. Granting file access is a separate user decision.
 - Status, next action and customer sentiment are inferred from the available e-mail. A reply that did not reach the user's mailbox cannot clear a wait. No OneSupport records are downloaded.
 - The calendar uses a fixed UTC offset and configured holidays; it does not implement daylight saving or guarantee a complete public-holiday calendar.
